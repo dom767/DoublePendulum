@@ -33,4 +33,5 @@ Launching Chrome for automated browser verification was blocked by the execution
 - Decide whether milestone 4 needs additional metrics after final-angle maps work.
 - Growth is an explicitly labelled pedagogical approximation, not a telescoping-rod dynamics model.
 - Session settings deliberately do not persist; shareable state/bookmarks arrive in milestone 4.
-- No grid, pixel field, map, video timeline, direct export, deployment or analytics yet.
+- No grid, pixel field, map, video timeline or direct video export yet.
+- Deployment scripts (Run Local / Deploy Local / Deploy Prod) package to `Export/` and target `https://baffledcat.com/pendulum/`; first production upload is still a human Deploy Prod step. Packaged HTML loads `/consent.js`; a Cookie settings footer link is not in the UI yet. Packaging smoke: `packageBuild` + `npm test` (8 pass) + served `Export/Local` on 7101 with versioned bundles.

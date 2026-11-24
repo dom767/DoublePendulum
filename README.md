@@ -4,7 +4,9 @@ A browser experiment about deterministic motion and chaos, progressing from a si
 
 ## Run
 
-Install Node.js 20 or later, double-click `StartServer.cmd`, and open the printed localhost URL. The default is http://127.0.0.1:7100; `PORT` overrides it. Close the server window or press Ctrl+C to stop. Alternatively, `npm start` serves the same source files. Internet access is optional for fonts.
+Install Node.js 20 or later, double-click `StartServer.cmd` (or `RunLocal.cmd`), and open the printed localhost URL. The default is http://127.0.0.1:7100; `PORT` overrides it. Close the server window or press Ctrl+C to stop. Alternatively, `npm start` serves the same source files. Internet access is optional for fonts.
+
+Packaged local and production builds use `DeployLocal.cmd` and `DeployProd.cmd` (humans only for prod). See [deploy.md](deploy.md).
 
 Use a recent desktop Chrome or Edge with WebGPU and hardware acceleration enabled, on localhost or HTTPS. An unavailable GPU produces an explanation; there is no CPU simulation fallback. Phone layouts are supported, but WebGPU support depends on the browser and device. This first milestone is not a measured recording-performance release.
 
