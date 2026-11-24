@@ -3,7 +3,7 @@
 ## Milestone status
 
 - [ ] **1 — Single pendulum and GPU physics:** implemented; real-browser/GPU acceptance remains outstanding.
-- [ ] **2 — Visible grid and periodic colour map:** unbuilt.
+- [ ] **2 — Visible grid and periodic colour map:** implemented; real-browser/GPU acceptance remains outstanding.
 - [ ] **3 — Pixel field and density transition:** unbuilt.
 - [ ] **4 — Fixed-duration maps and exploration:** unbuilt.
 - [ ] **5 — Two-minute guided presentation:** unbuilt.
@@ -33,5 +33,22 @@ Launching Chrome for automated browser verification was blocked by the execution
 - Decide whether milestone 4 needs additional metrics after final-angle maps work.
 - Growth is an explicitly labelled pedagogical approximation, not a telescoping-rod dynamics model.
 - Session settings deliberately do not persist; shareable state/bookmarks arrive in milestone 4.
-- No grid, pixel field, map, video timeline or direct video export yet.
+- No pixel field, map, video timeline or direct video export yet.
 - Deployment scripts (Run Local / Deploy Local / Deploy Prod) package to `Export/` and target `https://baffledcat.com/pendulum/`; first production upload is still a human Deploy Prod step. Packaged HTML loads `/consent.js`; a Cookie settings footer link is not in the UI yet. Packaging smoke: `packageBuild` + `npm test` (8 pass) + served `Export/Local` on 7101 with versioned bundles.
+
+## Milestone 2 implementation
+
+- [x] Single/grid mode switch, with fixed lengths for the grid and shared physical settings.
+- [x] GPU backend resizes state/readback buffers for ensembles and dispatches every cell through the same integration count. No CPU simulation fallback.
+- [x] 6×6, 10×10 and 16×16 visible pendulum grids with current-angle cell colours.
+- [x] Immutable initial-condition sampling at cell centres; primary angle increases rightward, secondary upward.
+- [x] Full-domain, 20° neighbourhood and 0.02° nearly-identical presets; custom centres/spans.
+- [x] Shared periodic two-angle colour function and 2D full-domain legend; optional initial-colour reference without restarting physics.
+- [x] Pointer, row/column and keyboard cell selection; enlarged live inspection with initial/current angles and time/step counts.
+- [x] Replay selected initial conditions in single mode at fixed lengths with the same physical settings.
+- [x] Documented session-only settings, apply/restart behaviour and defaults.
+- [x] Node tests for sampling, colour wrapping, hit testing, GPU dispatch/buffer lifecycle and complete grid/step/inspect/replay UI flow using stubs.
+- [x] Browser acceptance page extended to compare every cell of a 6×6 GPU ensemble against isolated runs and check frame-grouping independence.
+- [ ] Run actual browser/GPU acceptance at `/checks/gpu.html` and inspect desktop/portrait/360px layouts. Previous Chrome automation launch was policy-blocked; no hardware execution or visual pass is claimed for this build.
+
+Milestone 2 verification: `npm test` passes all 15 tests, including packaging; `npm run check`, source syntax checks and `git diff --check` pass. Local HTTP smoke checks return 200 for the app, new ensemble/grid/colour/domain modules and GPU check page on claimed port 7101. The preview server is stopped before handoff. The test command now uses directory discovery because Node 20 does not expand the previous quoted glob. Milestone 3 remains unbuilt. No production deployment performed.

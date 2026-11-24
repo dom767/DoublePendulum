@@ -14,16 +14,28 @@ Use a recent desktop Chrome or Edge with WebGPU and hardware acceleration enable
 
 Angles are absolute, measured from the downward vertical, positive toward the right. The primary pivot is fixed. Lengths are metres, masses kilograms, time seconds, angular velocities radians/second. Gravity is 9.81 m/s²; rods are massless, bobs are point masses, friction is zero, and initial angular velocities are zero. Default lengths and masses are equal, with initial angles 110° and 100°.
 
-The live simulator always integrates on WebGPU using float32 RK4 at Δt = 1/480 s. Canvas 2D draws the two GPU states. The independent JavaScript double-precision reference runs only in numerical verification. Simulation time counts integration steps, independently of frame rate. Work is bounded per frame, but pending steps are retained and reported as catching up; hidden tabs suspend playback. Trails are display samples, not a full numerical history.
+The live simulator always integrates on WebGPU using float32 RK4 at Δt = 1/480 s. Canvas 2D draws the GPU states. The independent JavaScript double-precision reference runs only in numerical verification. Simulation time counts integration steps, independently of frame rate. Work is bounded per frame, but pending steps are retained and reported as catching up; hidden tabs suspend playback. Trails are display samples, not a full numerical history.
 
 The default opening grows the second arm from zero to the configured length in eight simulation seconds. At exactly zero, an explicit simple-pendulum equation avoids division by zero. During growth, the fixed-length equations use the instantaneous length with a 5 cm numerical floor. **This is an illustrative changing system, not the dynamics of a physical telescoping rod.** Energy conservation applies only to fixed-length runs. Choose “Fixed lengths” for physical experiments; a second length of zero gives the simple-pendulum branch. Growth is deterministic per integration step.
 
 Settings apply to this tab only and are not persisted. Angles, lengths, masses and opening mode apply with **Apply and restart**. Speed, trails and comparison apply immediately. Home restarts with the currently entered valid parameters. Restore defaults resets all settings; reloading also restores defaults. Reduced-motion users start paused. The nearby trajectory changes only the primary initial angle by +0.0001 rad; sensitivity is not a claim that every trajectory is chaotic.
+
+## Pendulum grid — milestone 2
+
+Use **Grid** in the bottom navigation to switch between the single pendulum and an ensemble. Switching restarts time at zero and preserves playback speed and paused state. All grid cells use fixed lengths and the same GPU shader, physical parameters, timestep and step count; the growing opening applies only in single mode.
+
+Choose a 6×6, 10×10 (default), or 16×16 grid. Full-domain sampling covers −180° to +180° on each axis. Neighbourhood and nearly-identical presets cover 20° and 0.02° respectively around (110°, 100°). Custom centres and spans are in degrees; ranges crossing ±180° are allowed because the physics and colour mapping are periodic. Presets fill the draft fields; **Apply and restart** applies domain, grid size, masses and lengths together. Samples sit at cell centres, not domain endpoints: initial primary angle increases rightward, and initial secondary angle increases upward. Row 1 is the top.
+
+Each cell's background uses its **current** primary and secondary angles through a shared, smooth periodic RGB map. The 2D legend in Settings uses that same mapping across the full angle domain. **Initial angles · reference** changes colours immediately without restarting or freezing the moving pendulums. Colours encode angle pairs, not sensitivity or stability, and the mapping is not a unique decoding of every angle pair.
+
+Tap a cell to inspect its enlarged pendulum, initial conditions, current angles, time and integration count. Alternatively, use the row/column controls and **Inspect selected cell**, or focus the grid and use arrow keys then Enter. The inspection follows the actual GPU cell state while the grid continues running. **Replay in single view** transfers the selected initial angles, uses fixed lengths and restarts at time zero with the same physical parameters. Close/Escape returns to the selection controls. Grid/domain/colour settings are session-only; Restore defaults resets them as well as the single-view preferences, while retaining the current view mode.
 
 ## Verification
 
 `npm ci` installs development-only type declarations and TypeScript. Run `npm test` and `npm run check`. Tests use Node's built-in runner; its VM-modules flag boots the full UI module graph against a small DOM stub. No third-party browser framework is included.
 
 With the server running, open `/checks/gpu.html` in a WebGPU browser for real shader compilation, 1-second CPU/GPU agreement (maximum state error <0.002 rad or rad/s), exact replay, equilibrium, zero length, growth finiteness, and 120-second energy drift (<0.02 J). The page reports PASS or FAIL. Growth advances vary length per step on the GPU with a single readback per batch. Long-time CPU/GPU trajectories may differ because of chaos and floating-point precision; short-time agreement and energy checks are the useful comparisons.
+
+The browser checks also run a 6×6 ensemble for 480 steps, compare every cell bit-for-bit against an isolated single-view run, and compare one batch with 173+307 steps. Node tests verify axis sampling, periodic colours, GPU dispatch/readback sizing through a device stub, and the complete UI switch/step/inspect/replay path through a DOM/GPU stub. Stubs do not validate actual GPU execution or browser layout.
 
 See [PLAN.md](PLAN.md) for all five milestones and [PROGRESS.md](PROGRESS.md) for evidence and remaining work.

@@ -9,7 +9,7 @@
 - Frictionless, equal-length, equal-mass defaults; allow unequal lengths and masses in settings.
 - Final-angle colouring comes first. Sensitivity/first-flip metrics are possible later additions, requiring explicit definitions.
 
-This Build phase implements milestone 1 and saves the roadmap and tracker. Later milestones remain separate phases. The user's WebGPU decision supersedes the earlier CPU-first/fallback proposal.
+Milestones 1 and 2 are implemented; outstanding browser acceptance is tracked in PROGRESS.md. Later milestones remain separate phases. The user's WebGPU decision supersedes the earlier CPU-first/fallback proposal.
 
 ## 1. Physics and single-pendulum view
 

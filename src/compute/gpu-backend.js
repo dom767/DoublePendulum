@@ -5,10 +5,16 @@ export class GPUBackend {
   /** @param {GPUDevice} device @param {GPUComputePipeline} pipeline */
   constructor(device, pipeline) {
     this.device=device; this.pipeline=pipeline;
-    this.state=device.createBuffer({size:32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
     this.params=device.createBuffer({size:32,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
-    this.read=device.createBuffer({size:32,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST});
-    this.bind=device.createBindGroup({layout:pipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:this.state}},{binding:1,resource:{buffer:this.params}}]});
+    this.resize(2);
+  }
+  /** Call only between completed readbacks. @param {number} count */
+  resize(count) {
+    if(!Number.isInteger(count)||count<1||count>4096) throw new Error('Invalid ensemble size.');
+    this.state?.destroy(); this.read?.destroy(); this.count=count;
+    this.state=this.device.createBuffer({size:count*16,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
+    this.read=this.device.createBuffer({size:count*16,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST});
+    this.bind=this.device.createBindGroup({layout:this.pipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:this.state}},{binding:1,resource:{buffer:this.params}}]});
   }
   static async create() {
     if (!navigator.gpu) throw new Error('WebGPU is required. Open localhost in a recent Chrome or Edge with hardware acceleration enabled.');
@@ -23,7 +29,13 @@ export class GPUBackend {
     return new GPUBackend(device,pipeline);
   }
   /** @param {number} a @param {number} b */
-  reset(a,b) { this.device.queue.writeBuffer(this.state,0,new Float32Array([a,b,0,0,a+0.0001,b,0,0])); }
+  reset(a,b) { this.resetStates(new Float32Array([a,b,0,0,a+0.0001,b,0,0])); }
+  /** @param {Float32Array} states */
+  resetStates(states) {
+    if(states.length%4 || !states.every(Number.isFinite)) throw new Error('Invalid ensemble states.');
+    if(states.length/4!==this.count) this.resize(states.length/4);
+    this.device.queue.writeBuffer(this.state,0,states);
+  }
   /** @param {{l1:number,l2:number,m1:number,m2:number}} p @param {number} count */
   writeParams(p, count) {
     this.device.queue.writeBuffer(this.params,0,new Float32Array([p.l1,p.l2,p.m1,p.m2,DT,count,0,0]));
@@ -31,8 +43,8 @@ export class GPUBackend {
   /** @param {boolean} copy */
   submitSteps(copy) {
     const encoder=this.device.createCommandEncoder();
-    const pass=encoder.beginComputePass(); pass.setPipeline(this.pipeline); pass.setBindGroup(0,this.bind); pass.dispatchWorkgroups(2); pass.end();
-    if(copy) encoder.copyBufferToBuffer(this.state,0,this.read,0,32);
+    const pass=encoder.beginComputePass(); pass.setPipeline(this.pipeline); pass.setBindGroup(0,this.bind); pass.dispatchWorkgroups(this.count); pass.end();
+    if(copy) encoder.copyBufferToBuffer(this.state,0,this.read,0,this.count*16);
     this.device.queue.submit([encoder.finish()]);
   }
   async readState() {

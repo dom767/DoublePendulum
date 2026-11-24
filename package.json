@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node serve.mjs",
     "export": "node actions/DeployLocal.mjs",
-    "test": "node --experimental-vm-modules --test \"test/**/*.test.js\"",
+    "test": "node --experimental-vm-modules --test test",
     "check": "tsc -p jsconfig.json"
   },
   "devDependencies": {

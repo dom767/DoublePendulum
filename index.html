@@ -20,18 +20,37 @@
     <h2>The experiment</h2>
     <p>Session settings · changes restart the experiment. Reload restores defaults.</p>
     <form id="parameters">
-      <label>Primary angle (°)<input id="angle1" type="number" min="-180" max="180" step="0.1" value="110" required></label>
-      <label>Secondary angle (°)<input id="angle2" type="number" min="-180" max="180" step="0.1" value="100" required></label>
+      <div id="single-controls">
+      <label>Primary angle (°)<input id="angle1" type="number" min="-180" max="180" step="any" value="110" required></label>
+      <label>Secondary angle (°)<input id="angle2" type="number" min="-180" max="180" step="any" value="100" required></label>
+      </div>
+      <div id="grid-controls" class="hidden">
+        <label>Starting grid<select id="domain-preset"><option value="full">Full angle domain</option><option value="neighbourhood">Neighbourhood · 20°</option><option value="nearby">Nearly identical · 0.02°</option><option value="custom">Custom domain</option></select></label>
+        <label>Grid size<select id="grid-size"><option value="6">6 × 6</option><option value="10" selected>10 × 10</option><option value="16">16 × 16</option></select></label>
+        <div class="pair"><label>θ₁ centre (°)<input id="center1" type="number" min="-180" max="180" step="any" value="0" required></label><label>θ₂ centre (°)<input id="center2" type="number" min="-180" max="180" step="any" value="0" required></label></div>
+        <div class="pair"><label>θ₁ span (°)<input id="span1" type="number" min="0.0001" max="360" step="any" value="360" required></label><label>θ₂ span (°)<input id="span2" type="number" min="0.0001" max="360" step="any" value="360" required></label></div>
+        <p>Cell-centre samples. θ₁ increases rightward; θ₂ increases upward. Grid mode always uses fixed lengths.</p>
+      </div>
       <div class="pair"><label>Length 1 (m)<input id="length1" type="number" min="0.2" max="3" step="0.1" value="1" required></label><label>Length 2 (m)<input id="length2" type="number" min="0" max="3" step="0.1" value="1" required></label></div>
       <div class="pair"><label>Mass 1 (kg)<input id="mass1" type="number" min="0.2" max="5" step="0.1" value="1" required></label><label>Mass 2 (kg)<input id="mass2" type="number" min="0.2" max="5" step="0.1" value="1" required></label></div>
-      <label>Opening scene<select id="opening"><option value="grow">Grow the second arm · 8 s</option><option value="fixed">Fixed lengths · energy conserving</option></select></label>
-      <p class="hint">Growth is a changing-length illustration using instantaneous fixed-length equations, not a model of a telescoping rod. The first 5 cm are regularised.</p>
+      <div id="opening-controls"><label>Opening scene<select id="opening"><option value="grow">Grow the second arm · 8 s</option><option value="fixed">Fixed lengths · energy conserving</option></select></label>
+      <p class="hint">Growth is a changing-length illustration using instantaneous fixed-length equations, not a model of a telescoping rod. The first 5 cm are regularised.</p></div>
       <button type="submit" class="primary">Apply and restart</button>
       <button type="button" id="defaults">Restore defaults</button>
     </form>
     <label>Playback speed<select id="speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
-    <label class="check"><input id="trails" type="checkbox" checked> Show trails</label>
-    <label class="check"><input id="compare" type="checkbox"> Nearby trajectory (+0.0001 rad)</label>
+    <div id="single-display"><label class="check"><input id="trails" type="checkbox" checked> Show trails</label>
+    <label class="check"><input id="compare" type="checkbox"> Nearby trajectory (+0.0001 rad)</label></div>
+    <div id="grid-display" class="hidden">
+      <label>Cell colour<select id="colour-source"><option value="current">Current angles</option><option value="initial">Initial angles · reference</option></select></label>
+      <h2>Angle colour key</h2>
+      <p>Full periodic domain, −180° to +180°. θ₁ increases rightward; θ₂ increases upward. Colours encode angles, not stability.</p>
+      <canvas id="colour-legend" width="120" height="120" role="img" aria-label="Two-dimensional periodic colour key: primary angle left to right, secondary angle bottom to top, both minus 180 to plus 180 degrees"></canvas>
+      <p>Cell selection (row 1 is top)</p>
+      <div class="pair"><label>Row<input id="cell-row" type="number" min="1" max="10" step="1" value="1" required></label><label>Column<input id="cell-col" type="number" min="1" max="10" step="1" value="1" required></label></div>
+      <button id="inspect" type="button">Inspect selected cell</button>
+      <p>Tap a cell, or use the row and column controls. Arrow keys move the selection when the grid has focus; Enter inspects it.</p>
+    </div>
     <p>No friction. Zero initial velocities. Gravity 9.81 m/s². All integration runs on WebGPU.</p>
   </aside>
   <div id="view-status" role="status">Initialising WebGPU…</div>
@@ -42,7 +61,17 @@
     <button id="fullscreen" aria-label="Toggle fullscreen" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></svg><span id="full-label">Full</span></button>
     <button id="pause" aria-label="Pause simulation" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v16M16 4v16"/></svg><span id="pause-label">Pause</span></button>
     <button id="step" aria-label="Pause and advance one integration step" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 12 8-12 8zM20 4v16"/></svg><span>Step</span></button>
+    <button id="grid-toggle" aria-label="Switch between single pendulum and grid" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/></svg><span id="grid-label">Grid</span></button>
   </nav>
+  <dialog id="inspector" aria-labelledby="inspector-title">
+    <h2 id="inspector-title">Selected experiment</h2>
+    <p id="cell-details"></p>
+    <canvas id="cell-view" aria-label="Enlarged selected pendulum from the current GPU grid state"></canvas>
+    <p id="cell-state"></p>
+    <p>The selected cell shares the grid's time and physical parameters. Single-view replay starts this cell again at time zero.</p>
+    <button id="replay-cell" class="primary">Replay in single view</button>
+    <button id="close-inspector">Close</button>
+  </dialog>
 </main>
 <script type="module" src="src/main.js"></script>
 </body>
