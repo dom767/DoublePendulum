@@ -1,4 +1,9 @@
 export class SingleView {
+  /** Shared with the story camera so its first frame has exactly the same geometry.
+   * @param {number} w @param {number} h @param {{l1:number,l2:number}} p */
+  static geometry(w,h,p) {
+    return {cx:w>=768?w*.60:w*.5,cy:h*.44,scale:Math.min(w>=768?w*.28:w*.43,h*.27)/(p.l1+Math.max(p.l2,1))};
+  }
   /** @param {HTMLCanvasElement} canvas */
   constructor(canvas) {
     this.canvas=canvas; this.ctx=canvas.getContext('2d');
@@ -12,8 +17,7 @@ export class SingleView {
     const c=this.canvas, ctx=this.ctx, w=c.clientWidth,h=c.clientHeight, dpr=Math.min(devicePixelRatio,2);
     if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)) {c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
     ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
-    const desktop=w>=768, cx=desktop?w*.60:w*.5, cy=h*.44;
-    const scale=Math.min(desktop?w*.28:w*.43,h*.27)/(p.l1+Math.max(p.l2,1));
+    const {cx,cy,scale}=SingleView.geometry(w,h,p);
     ctx.strokeStyle='#393329';ctx.lineWidth=1;
     for(let r=1;r<=3;r++){ctx.beginPath();ctx.arc(cx,cy,r*scale*.65,0,Math.PI*2);ctx.stroke();}
     for(let i=compare?1:0;i>=0;i--) {

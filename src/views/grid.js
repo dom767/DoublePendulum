@@ -14,7 +14,8 @@ export class GridView {
   draw(states,ensemble,p,selected,initialColours,panelOpen) {
     const c=this.canvas,ctx=this.ctx,w=c.clientWidth,h=c.clientHeight,dpr=Math.min(devicePixelRatio,2);
     if(!ctx)return;
-    c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
+    if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
     const left=w>=768&&panelOpen?340:48, right=24, top=72, bottom=205;
     const side=Math.max(1,Math.min(w-left-right,h-top-bottom));
     const x=left+(w-left-right-side)/2,y=top+(h-top-bottom-side)/2;
@@ -23,7 +24,9 @@ export class GridView {
     for(let row=0;row<n;row++)for(let col=0;col<n;col++) {
       const index=row*n+col, i=index*4, px=x+col*cell,py=y+row*cell;
       const colours=initialColours?ensemble.initial:states;
-      ctx.fillStyle=angleColour(colours[i],colours[i+1]);ctx.fillRect(px+.5,py+.5,cell-1,cell-1);
+      const gap=cell>=7?1:0;
+      ctx.fillStyle=angleColour(colours[i],colours[i+1]);ctx.fillRect(px+gap/2,py+gap/2,cell-gap,cell-gap);
+      if(cell<5)continue;
       const scale=cell*.37/(p.l1+p.l2),cx=px+cell/2,cy=py+cell/2;
       const ax=cx+Math.sin(states[i])*p.l1*scale,ay=cy+Math.cos(states[i])*p.l1*scale;
       const bx=ax+Math.sin(states[i+1])*p.l2*scale,by=ay+Math.cos(states[i+1])*p.l2*scale;

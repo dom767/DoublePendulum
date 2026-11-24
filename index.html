@@ -26,7 +26,7 @@
       </div>
       <div id="grid-controls" class="hidden">
         <label>Starting grid<select id="domain-preset"><option value="full">Full angle domain</option><option value="neighbourhood">Neighbourhood · 20°</option><option value="nearby">Nearly identical · 0.02°</option><option value="custom">Custom domain</option></select></label>
-        <label>Grid size<select id="grid-size"><option value="6">6 × 6</option><option value="10" selected>10 × 10</option><option value="16">16 × 16</option></select></label>
+        <label>Grid size<select id="grid-size"><option value="2">2 × 2</option><option value="6">6 × 6</option><option value="10" selected>10 × 10</option><option value="16">16 × 16</option><option value="40">40 × 40</option><option value="160">160 × 160</option></select></label>
         <div class="pair"><label>θ₁ centre (°)<input id="center1" type="number" min="-180" max="180" step="any" value="0" required></label><label>θ₂ centre (°)<input id="center2" type="number" min="-180" max="180" step="any" value="0" required></label></div>
         <div class="pair"><label>θ₁ span (°)<input id="span1" type="number" min="0.0001" max="360" step="any" value="360" required></label><label>θ₂ span (°)<input id="span2" type="number" min="0.0001" max="360" step="any" value="360" required></label></div>
         <p>Cell-centre samples. θ₁ increases rightward; θ₂ increases upward. Grid mode always uses fixed lengths.</p>
@@ -39,6 +39,9 @@
       <button type="button" id="defaults">Restore defaults</button>
     </form>
     <label>Playback speed<select id="speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+    <label>Single → grid transition<select id="grid-transition"><option value="story">Guided story · 100 seconds</option><option value="instant">Instant switch</option></select></label>
+    <p>Session preference. Guided mode uses a nested 160 × 160 field anchored to the original starting angles. Speed controls physics; chapter timing stays paced. Reduced motion uses camera cuts and starts paused.</p>
+    <button id="play-story" type="button" disabled>Play grid story</button>
     <div id="single-display"><label class="check"><input id="trails" type="checkbox" checked> Show trails</label>
     <label class="check"><input id="compare" type="checkbox"> Nearby trajectory (+0.0001 rad)</label></div>
     <div id="grid-display" class="hidden">
@@ -55,6 +58,10 @@
   </aside>
   <div id="view-status" role="status">Initialising WebGPU…</div>
   <div class="caption"><span id="phase">From one arm to two</span><p id="explanation">A second degree of freedom opens up a much richer range of motion.</p></div>
+  <section id="story-overlay" class="hidden" aria-label="Guided pendulum chapters">
+    <div id="story-copy"><span id="story-chapter" class="eyebrow"></span><h2 id="story-title"></h2><p id="story-caption"></p></div>
+    <div class="story-footer"><span id="story-progress"></span><button id="replay-story">Replay</button><button id="leave-story">Explore grid</button></div>
+  </section>
   <nav id="app-nav" aria-label="Simulation controls">
     <button id="restart" aria-label="Home: restart experiment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8M6 9v12h12V9M10 21v-7h4v7"/></svg><span>Home</span></button>
     <button id="settings-toggle" aria-label="Toggle settings" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6"/></svg><span>Settings</span></button>

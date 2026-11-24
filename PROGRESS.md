@@ -4,9 +4,9 @@
 
 - [ ] **1 — Single pendulum and GPU physics:** implemented; real-browser/GPU acceptance remains outstanding.
 - [ ] **2 — Visible grid and periodic colour map:** implemented; real-browser/GPU acceptance remains outstanding.
-- [ ] **3 — Pixel field and density transition:** unbuilt.
+- [ ] **3 — Pixel field and density transition:** partial: nested 160×160 field and guided camera reveal implemented; pixel-resolution sampling, domain zoom and recording-performance acceptance remain outstanding.
 - [ ] **4 — Fixed-duration maps and exploration:** unbuilt.
-- [ ] **5 — Two-minute guided presentation:** unbuilt.
+- [ ] **5 — Two-minute guided presentation:** partial: 100-second single-to-grid story implemented; full 120-second presentation with maps remains outstanding.
 
 ## Milestone 1 implementation
 
@@ -33,7 +33,7 @@ Launching Chrome for automated browser verification was blocked by the execution
 - Decide whether milestone 4 needs additional metrics after final-angle maps work.
 - Growth is an explicitly labelled pedagogical approximation, not a telescoping-rod dynamics model.
 - Session settings deliberately do not persist; shareable state/bookmarks arrive in milestone 4.
-- No pixel field, map, video timeline or direct video export yet.
+- No per-display-pixel sampling, fixed-duration map or direct video export yet. A partial guided timeline now covers the single-to-dense-grid transition.
 - Deployment scripts (Run Local / Deploy Local / Deploy Prod) package to `Export/` and target `https://baffledcat.com/pendulum/`; first production upload is still a human Deploy Prod step. Packaged HTML loads `/consent.js`; a Cookie settings footer link is not in the UI yet. Packaging smoke: `packageBuild` + `npm test` (8 pass) + served `Export/Local` on 7101 with versioned bundles.
 
 ## Milestone 2 implementation
@@ -52,3 +52,20 @@ Launching Chrome for automated browser verification was blocked by the execution
 - [ ] Run actual browser/GPU acceptance at `/checks/gpu.html` and inspect desktop/portrait/360px layouts. Previous Chrome automation launch was policy-blocked; no hardware execution or visual pass is claimed for this build.
 
 Milestone 2 verification: `npm test` passes all 15 tests, including packaging; `npm run check`, source syntax checks and `git diff --check` pass. Local HTTP smoke checks return 200 for the app, new ensemble/grid/colour/domain modules and GPU check page on claimed port 7101. The preview server is stopped before handoff. The test command now uses directory discovery because Node 20 does not expand the previous quoted glob. Milestone 3 remains unbuilt. No production deployment performed.
+
+## Guided single-to-grid story
+
+- [x] Default Grid action starts a paced 100-second guided transition; instant switch remains a session setting.
+- [x] Continuous eased camera: single → 2×2 → 10×10 → 40×40 → 160×160, with reading holds.
+- [x] Preserve the original cell's current state, angular velocities and starting angles at top-left; share source geometry for the first frame.
+- [x] Nested 160×160 field at 2.25° initial-angle spacing; no resampling or hidden-cell restarts during camera moves.
+- [x] Fade through the reset at 36 s, reveal initial-angle colours over 38–44 s, restart every cell together at 48 s.
+- [x] Fading chapter headings/captions, pause, captured-state replay, manual exploration and Home cancellation.
+- [x] GPU workgroups of 64 and 25,600-state buffers; screen-space culling and gradual rod fade at dense scales.
+- [x] Camera animation uses cached completed GPU states independently of asynchronous readback. Hidden-tab playback pauses; long stalls slow chapter time rather than skipping beats.
+- [x] Reduced-motion camera cuts and paused start. Documented setting scope/default/reset and the nested-domain convention.
+- [x] Timeline continuity/reset/colour tests, dense buffer-dispatch checks and full story pause/reset/restart/replay/exit UI test with stubs.
+- [x] Browser acceptance page adds dense GPU corner checks and a clearly scoped compute/readback timing.
+- [ ] Actual WebGPU execution, smoothness and visual review at landscape/portrait recording sizes. Browser launch was previously policy-blocked; no new hardware/visual pass is claimed.
+
+Verification: all 19 Node tests pass, including source packaging; TypeScript and syntax checks pass. Use Grid from the single view to watch the sequence, and `/checks/gpu.html` to run hardware acceptance. Milestones 3 and 5 remain partial, not complete. No deployment performed.

@@ -10,7 +10,7 @@ async function boot(supported=false) {
     const listeners={};
     const classes=new Set();
     const node={value:match[0].match(/\bvalue="([^"]*)"/)?.[1]??'',checked:match[0].includes('checked'),disabled:false,
-      textContent:'',width:0,height:0,clientWidth:1000,clientHeight:800,
+      textContent:'',style:{},width:0,height:0,clientWidth:1000,clientHeight:800,
       classList:{toggle:(x,force)=>{if(force??!classes.has(x))classes.add(x);else classes.delete(x);},contains:x=>classes.has(x),add:x=>classes.add(x)},
       addEventListener:(type,fn)=>{listeners[type]=fn;},setAttribute(){},focus(){},reportValidity:()=>true,reset(){},
       open:false,showModal(){this.open=true;},close(){this.open=false;listeners.close?.();},
@@ -19,6 +19,7 @@ async function boot(supported=false) {
   }
   nodes.get('speed').value='1';nodes.get('opening').value='grow';
   nodes.get('grid-size').value='10';nodes.get('colour-source').value='current';
+  nodes.get('grid-transition').value='instant';
   const frames=[],calls=[];
   let state=new Float32Array(8);
   const gpu={device:{lost:new Promise(()=>{}),addEventListener(){}},
@@ -74,4 +75,29 @@ test('grid mode resets the GPU ensemble, steps it, inspects a cell and replays i
   assert.equal(calls.at(-1).p.l1,1);
   assert.equal(nodes.get('single-controls').classList.contains('hidden'),false);
   assert.match(nodes.get('view-status').textContent,/0 steps/);
+});
+
+test('guided story preserves the source, pauses, resets once before colours, restarts and exits',async()=>{
+  const {nodes,calls,tick}=await boot(true);
+  nodes.get('opening').value='fixed';await tick(100);
+  nodes.get('grid-transition').value='story';nodes.get('grid-toggle').listeners.click();await tick(200);
+  const seed=calls.find(c=>c.kind==='grid').state,source=calls.find(c=>c.kind==='reset').state;
+  assert.equal(seed.length,25600*4);assert.deepEqual(seed.slice(0,4),source.slice(0,4));
+  let clock=200;
+  for(let i=0;i<140;i++)await tick(clock+=100);
+  nodes.get('pause').listeners.click();await tick(clock+=100);
+  const caption=nodes.get('story-progress').textContent;
+  await tick(clock+=100);assert.equal(nodes.get('story-progress').textContent,caption);
+  nodes.get('pause').listeners.click();
+  for(let i=0;i<230;i++)await tick(clock+=100);
+  assert.equal(calls.filter(c=>c.kind==='grid').length,2,'Exactly one reset before colour reveal');
+  const frozenCalls=calls.length;
+  for(let i=0;i<70;i++)await tick(clock+=100);
+  assert.equal(calls.length,frozenCalls,'No simulation advances while reset colours are revealed');
+  for(let i=0;i<50;i++)await tick(clock+=100);
+  assert.ok(calls.length>frozenCalls,'Physics resumes after the colour hold');
+  nodes.get('replay-story').listeners.click();await tick(clock+=100);await tick(clock+=100);
+  assert.match(nodes.get('story-progress').textContent,/^0 \/ 100/);
+  nodes.get('leave-story').listeners.click();await tick(clock+=100);await tick(clock+=100);
+  assert.match(nodes.get('view-status').textContent,/25600 cells/);assert.equal(nodes.get('grid-size').value,'160');
 });

@@ -10,7 +10,7 @@ export class GPUBackend {
   }
   /** Call only between completed readbacks. @param {number} count */
   resize(count) {
-    if(!Number.isInteger(count)||count<1||count>4096) throw new Error('Invalid ensemble size.');
+    if(!Number.isInteger(count)||count<1||count>25600) throw new Error('Invalid ensemble size.');
     this.state?.destroy(); this.read?.destroy(); this.count=count;
     this.state=this.device.createBuffer({size:count*16,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
     this.read=this.device.createBuffer({size:count*16,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST});
@@ -43,7 +43,7 @@ export class GPUBackend {
   /** @param {boolean} copy */
   submitSteps(copy) {
     const encoder=this.device.createCommandEncoder();
-    const pass=encoder.beginComputePass(); pass.setPipeline(this.pipeline); pass.setBindGroup(0,this.bind); pass.dispatchWorkgroups(this.count); pass.end();
+    const pass=encoder.beginComputePass(); pass.setPipeline(this.pipeline); pass.setBindGroup(0,this.bind); pass.dispatchWorkgroups(Math.ceil(this.count/64)); pass.end();
     if(copy) encoder.copyBufferToBuffer(this.state,0,this.read,0,this.count*16);
     this.device.queue.submit([encoder.finish()]);
   }

@@ -25,10 +25,13 @@ test('GPU ensemble dispatch, parameter step count, readback size and resize life
     assert.equal(/** @type {any} */(old).destroyed,true);
     const result=await gpu.advance(17,{l1:1,l2:1,m1:1,m2:1});
     assert.equal(result.length,256*4);assert.deepEqual(result,e.initial);
-    assert.deepEqual(dispatches,[256]);assert.equal(params.at(-1)[5],17);
+    assert.deepEqual(dispatches,[4]);assert.equal(params.at(-1)[5],17);
     assert.ok(Math.abs(params.at(-1)[4]-DT)<1e-9);
     gpu.reset(1,2);await gpu.advanceVarying(3,()=>({l1:1,l2:1,m1:1,m2:1}));
-    assert.equal(gpu.count,2);assert.deepEqual(dispatches,[256,2,2,2]);
+    assert.equal(gpu.count,2);assert.deepEqual(dispatches,[4,1,1,1]);
+    const dense=createEnsemble(160,presets.full);gpu.resetStates(dense.initial);
+    const field=await gpu.advance(1,{l1:1,l2:1,m1:1,m2:1});
+    assert.equal(field.length,25600*4);assert.equal(dispatches.at(-1),400);
     assert.throws(()=>gpu.resetStates(new Float32Array([NaN,0,0,0])));
   } finally {
     globalThis.GPUBufferUsage=originals.GPUBufferUsage;globalThis.GPUMapMode=originals.GPUMapMode;

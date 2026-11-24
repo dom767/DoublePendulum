@@ -42,6 +42,16 @@ dialog { width: min(92vw, 26rem); max-height: calc(100dvh - 2rem); overflow: aut
 dialog::backdrop { background: var(--bg); opacity: .8; }
 dialog button { border-radius: var(--radius-pill); margin-top: .75rem; }
 #cell-view { width: 100%; height: 260px; display: block; }
+#story-overlay { position: absolute; inset: 0; pointer-events: none; }
+#story-copy { position: absolute; top: max(1.25rem, env(safe-area-inset-top)); left: 1.5rem; right: 1.5rem; max-width: 44rem; margin: auto; text-align: center; }
+#story-title { font-size: clamp(1.25rem, 3.5vw, 2.2rem); letter-spacing: -.02em; margin: .4rem 0; }
+#story-caption { font-size: clamp(.8rem, 1.5vw, .95rem); }
+.story-footer { position: absolute; bottom: calc(7rem + env(safe-area-inset-bottom)); left: 1rem; right: 1rem; display: flex; justify-content: center; align-items: center; gap: .6rem; }
+.story-footer button { pointer-events: auto; border-radius: var(--radius-pill); font-size: .75rem; }
+#story-progress { font: .7rem var(--font-mono); color: var(--text-muted); }
+.story-mode .heading, .story-mode .caption, .story-mode #settings, .story-mode #nav-scrim { display: none !important; }
+.story-mode #settings-toggle, .story-mode #step { opacity: .4; }
+body.panel-open .story-mode #view-status { visibility: visible; }
 @media (max-width: 767.98px) {
   .heading { top: max(1rem, env(safe-area-inset-top)); right: max(1rem, env(safe-area-inset-right)); }
   aside { top: auto; left: .5rem; right: .5rem; width: auto; bottom: calc(74px + env(safe-area-inset-bottom)); max-height: calc(100vh - 90px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); max-height: calc(100dvh - 90px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); z-index: 8; }

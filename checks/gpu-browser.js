@@ -42,6 +42,13 @@ try {
   const chunked=await gpu.advance(307,defaults);
   assert(chunked.every((x,i)=>x===grid[i]),'All cells receive the same steps regardless of frame grouping');
   assert(saved.every((x,i)=>x===ensemble.initial[i]),'Initial conditions are retained');
-  output.textContent=`PASS: GPU agreement ${error.toExponential(3)} rad or rad/s; 120 s max energy drift ${max.toExponential(3)} J; equilibrium, restart, zero length, growth; all 36 grid cells match isolated runs; frame grouping and retained initial conditions.`;
+  const dense=createEnsemble(160,presets.full);gpu.resetStates(dense.initial);
+  const denseStart=performance.now(),denseRun=await gpu.advance(32,defaults),denseMs=performance.now()-denseStart;
+  assert(denseRun.length===25600*4&&denseRun.every(Number.isFinite),'160×160 GPU field');
+  for(const index of [0,159,25599]) {
+    const initial=cellInitial(dense,index);gpu.reset(initial[0],initial[1]);const isolated=await gpu.advance(32,defaults);
+    assert(isolated.slice(0,4).every((x,i)=>x===denseRun[index*4+i]),`Dense cell ${index} matches isolated run`);
+  }
+  output.textContent=`PASS: GPU agreement ${error.toExponential(3)} rad or rad/s; 120 s max energy drift ${max.toExponential(3)} J; equilibrium, restart, zero length, growth; all 36 grid cells match isolated runs; frame grouping and retained initial conditions; 160×160 field (32 steps plus readback: ${denseMs.toFixed(1)} ms), dense corner checks. This timing excludes drawing and is not a recording frame-rate benchmark.`;
   gpu.device.destroy();
 } catch(error) {output.textContent=`FAIL: ${error instanceof Error?error.message:String(error)}`;}

@@ -8,7 +8,7 @@ export const presets = Object.freeze({
 /** Cell-centre sampling. Row zero is the top: secondary angle increases upward.
  * @param {number} size @param {AngleDomain} domain */
 export function createEnsemble(size,domain) {
-  if(!Number.isInteger(size)||size<2||size>32) throw new Error('Grid size must be between 2 and 32.');
+  if(!Number.isInteger(size)||size<2||size>160) throw new Error('Grid size must be between 2 and 160.');
   const {center1,center2,span1,span2}=domain;
   if(![center1,center2,span1,span2].every(Number.isFinite)||span1<=0||span2<=0||span1>360||span2>360) throw new Error('Invalid angle domain.');
   const initial=new Float32Array(size*size*4);
