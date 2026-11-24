@@ -24,16 +24,37 @@ export class GPUBackend {
   }
   /** @param {number} a @param {number} b */
   reset(a,b) { this.device.queue.writeBuffer(this.state,0,new Float32Array([a,b,0,0,a+0.0001,b,0,0])); }
-  /** @param {number} count @param {{l1:number,l2:number,m1:number,m2:number}} p */
-  async advance(count,p) {
+  /** @param {{l1:number,l2:number,m1:number,m2:number}} p @param {number} count */
+  writeParams(p, count) {
     this.device.queue.writeBuffer(this.params,0,new Float32Array([p.l1,p.l2,p.m1,p.m2,DT,count,0,0]));
+  }
+  /** @param {boolean} copy */
+  submitSteps(copy) {
     const encoder=this.device.createCommandEncoder();
     const pass=encoder.beginComputePass(); pass.setPipeline(this.pipeline); pass.setBindGroup(0,this.bind); pass.dispatchWorkgroups(2); pass.end();
-    encoder.copyBufferToBuffer(this.state,0,this.read,0,32);
+    if(copy) encoder.copyBufferToBuffer(this.state,0,this.read,0,32);
     this.device.queue.submit([encoder.finish()]);
+  }
+  async readState() {
     await this.read.mapAsync(GPUMapMode.READ);
     const result=new Float32Array(this.read.getMappedRange()).slice(); this.read.unmap();
     if(!result.every(Number.isFinite)) throw new Error('Numerical overflow. Restart with shorter steps or less extreme parameters.');
     return result;
+  }
+  /** @param {number} count @param {{l1:number,l2:number,m1:number,m2:number}} p */
+  async advance(count,p) {
+    this.writeParams(p,count);
+    this.submitSteps(true);
+    return this.readState();
+  }
+  /** One GPU readback after many one-step dispatches with per-step parameters (used while the second arm grows).
+   * @param {number} count @param {(i:number)=>{l1:number,l2:number,m1:number,m2:number}} paramsAt */
+  async advanceVarying(count, paramsAt) {
+    if(count<=0) return this.advance(0,paramsAt(0));
+    for(let i=0;i<count;i++) {
+      this.writeParams(paramsAt(i),1);
+      this.submitSteps(i===count-1);
+    }
+    return this.readState();
   }
 }

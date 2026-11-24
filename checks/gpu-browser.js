@@ -1,6 +1,6 @@
 import { GPUBackend } from '../src/compute/gpu-backend.js';
 import { step } from '../src/physics/integrator.js';
-import { DT, defaults, energy } from '../src/physics/pendulum.js';
+import { DT, defaults, energy, growthLength } from '../src/physics/pendulum.js';
 
 const output=document.getElementById('result');
 const assert=(condition,message)=>{if(!condition)throw new Error(message);};
@@ -26,8 +26,7 @@ try {
   }
   assert(max<.02,`GPU 120 s energy drift ${max} J`);
   gpu.reset(1.9,1.7);
-  for(let i=0;i<3840;i++)await gpu.advance(1,{...defaults,l2:i===0?0:Math.max(.05,i/3840)});
-  const grown=await gpu.advance(0,defaults);
+  const grown=await gpu.advanceVarying(3840,i=>({...defaults,l2:growthLength(i*DT,defaults.l2)}));
   assert(grown.every(Number.isFinite),'Growth remains finite');
   output.textContent=`PASS: GPU agreement ${error.toExponential(3)} rad or rad/s; 120 s max energy drift ${max.toExponential(3)} J; equilibrium, restart, zero length, growth.`;
   gpu.device.destroy();

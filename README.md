@@ -24,6 +24,6 @@ Settings apply to this tab only and are not persisted. Angles, lengths, masses a
 
 `npm ci` installs development-only type declarations and TypeScript. Run `npm test` and `npm run check`. Tests use Node's built-in runner; its VM-modules flag boots the full UI module graph against a small DOM stub. No third-party browser framework is included.
 
-With the server running, open `/checks/gpu.html` in a WebGPU browser for real shader compilation, 1-second CPU/GPU agreement (maximum state error <0.002 rad or rad/s), exact replay, equilibrium, zero length, growth finiteness, and 120-second energy drift (<0.02 J). The page reports PASS or FAIL. Growth checks can take several seconds because they read back every step. Long-time CPU/GPU trajectories may differ because of chaos and floating-point precision; short-time agreement and energy checks are the useful comparisons.
+With the server running, open `/checks/gpu.html` in a WebGPU browser for real shader compilation, 1-second CPU/GPU agreement (maximum state error <0.002 rad or rad/s), exact replay, equilibrium, zero length, growth finiteness, and 120-second energy drift (<0.02 J). The page reports PASS or FAIL. Growth advances vary length per step on the GPU with a single readback per batch. Long-time CPU/GPU trajectories may differ because of chaos and floating-point precision; short-time agreement and energy checks are the useful comparisons.
 
 See [PLAN.md](PLAN.md) for all five milestones and [PROGRESS.md](PROGRESS.md) for evidence and remaining work.

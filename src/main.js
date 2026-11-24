@@ -1,5 +1,5 @@
 import { GPUBackend } from './compute/gpu-backend.js';
-import { DT } from './physics/pendulum.js';
+import { DT, GROW_DURATION, growthLength } from './physics/pendulum.js';
 import { SingleView } from './views/single.js';
 import { element, setupChrome } from './ui/controls.js';
 
@@ -48,18 +48,16 @@ async function frame(now) {
       }
       const count=stepPending?1:paused?0:Math.min(32,Math.floor(accumulator/DT));
       if(stepPending) stepPending=false;else if(!paused) accumulator-=count*DT;
-      // Growth uses a deterministic length per fixed step, independent of display cadence.
-      if(grow && time<8 && p.l2>0) {
-        for(let i=0;i<count;i++) {
-          const l2=time===0?0:Math.max(.05,p.l2*Math.min(1,time/8));
-          states=await backend.advance(1,{...p,l2});time+=DT;steps++;
-        }
-        if(count===0) states=await backend.advance(0,{...p,l2:0});
+      // Growth uses a deterministic length per fixed step; one GPU readback per frame (not per step).
+      if(grow && time<GROW_DURATION && p.l2>0) {
+        const start=time;
+        states=await backend.advanceVarying(count,i=>({...p,l2:growthLength(start+i*DT,p.l2)}));
+        time+=count*DT;steps+=count;
       } else { states=await backend.advance(count,p);time+=count*DT;steps+=count; }
-      const visual={...p,l2:grow?p.l2*Math.min(1,time/8):p.l2};
+      const visual={...p,l2:grow?p.l2*Math.min(1,time/GROW_DURATION):p.l2};
       view.draw(states,visual,input('trails').checked,input('compare').checked,count>0);
-      element('phase').textContent=grow&&time<8?'From one arm to two':'Deterministic does not mean predictable';
-      element('explanation').textContent=grow&&time<8?'The second arm grows over eight simulation seconds. This opening changes the system.':'Compare nearby starting angles. Some trajectories separate rapidly; others stay regular.';
+      element('phase').textContent=grow&&time<GROW_DURATION?'From one arm to two':'Deterministic does not mean predictable';
+      element('explanation').textContent=grow&&time<GROW_DURATION?'The second arm grows over eight simulation seconds. This opening changes the system.':'Compare nearby starting angles. Some trajectories separate rapidly; others stay regular.';
       status.textContent=`WebGPU · t = ${time.toFixed(2)} s · ${steps} steps · Δt = 1/480 s${paused?' · paused':''}${accumulator>.25?' · catching up':''}`;
     } catch(error) {fail(error);} finally {busy=false;}
   }

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { defaults, derivative, energy, DT } from '../src/physics/pendulum.js';
+import { defaults, derivative, energy, DT, GROW_DURATION, GROW_FLOOR, growthLength } from '../src/physics/pendulum.js';
 import { step } from '../src/physics/integrator.js';
 
 function evolve(s, seconds, dt=DT, p=defaults) {
@@ -28,4 +28,11 @@ test('short-time RK4 refinement converges',()=>{
   const initial=[1.9,1.7,0,0];
   const coarse=evolve(initial,1,1/60), fine=evolve(initial,1,1/120),reference=evolve(initial,1,1/960);
   assert.ok(distance(fine,reference)<distance(coarse,reference)/8);
+});
+test('growth length is zero at t=0 then floored until the ramp clears',()=>{
+  assert.equal(growthLength(0,1),0);
+  assert.equal(growthLength(DT,1),GROW_FLOOR);
+  assert.equal(growthLength(GROW_DURATION/2,1),0.5);
+  assert.equal(growthLength(GROW_DURATION,1),1);
+  assert.equal(growthLength(1,0),0);
 });

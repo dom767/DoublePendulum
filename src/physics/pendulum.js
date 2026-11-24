@@ -1,7 +1,18 @@
 /** Angles in radians from downward vertical; velocities in rad/s. */
 export const DT = 1 / 480;
+/** Opening scene duration in simulation seconds. */
+export const GROW_DURATION = 8;
+/** Numerical floor (m) while the second arm is growing; exact zero uses the simple-pendulum branch. */
+export const GROW_FLOOR = 0.05;
 /** @type {{l1:number,l2:number,m1:number,m2:number,g:number}} */
 export const defaults = Object.freeze({ l1: 1, l2: 1, m1: 1, m2: 1, g: 9.81 });
+
+/** Instantaneous second-arm length for the growing opening at simulation time `time`.
+ * @param {number} time @param {number} target @param {number} [duration] */
+export function growthLength(time, target, duration = GROW_DURATION) {
+  if (time === 0 || target === 0) return 0;
+  return Math.max(GROW_FLOOR, target * Math.min(1, time / duration));
+}
 
 /** Independent double-precision reference, used by tests only.
  * @param {number[]} s @param {typeof defaults} p */
