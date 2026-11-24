@@ -1,0 +1,57 @@
+/* Baffled Cat design tokens.
+   Source of truth for colours, fonts and radii across baffledcat.com and the apps.
+   Seeded from baffledcat/styles.css (:root). See guidelines/style.md for usage.
+   Apps: copy this file to css/vendor/tokens.css (or link it) and use the variables. */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg: #1c1812;
+  --bg-raised: #262019;
+  --bg-raised-hover: #2e271e;
+
+  /* Text */
+  --text: #f6efe2;
+  --text-muted: #b3a68e;
+  --text-faint: #85795f;
+  --text-faint-on-raised: #a89a7c; /* 4.5:1+ on --bg-raised */
+
+  /* Accents */
+  --accent-amber: #f2a544;
+  --accent-amber-soft: rgba(242, 165, 68, 0.14);
+  --accent-teal: #6fb8ae;
+  --accent-teal-soft: rgba(111, 184, 174, 0.14);
+
+  /* Borders */
+  --border: rgba(246, 239, 226, 0.1);
+  --border-strong: rgba(246, 239, 226, 0.2);
+
+  /* Shape */
+  --radius: 14px;
+  --radius-sm: 9px;
+  --radius-pill: 999px;
+
+  /* Type */
+  --font-display: "Space Grotesk", "Inter", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-brand: "Fredoka", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Motion */
+  --transition: 0.15s ease;
+
+  /* Layout */
+  --content-width: 1080px;
+  --prose-width: 780px;
+  --gutter: clamp(1.25rem, 4vw, 2rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

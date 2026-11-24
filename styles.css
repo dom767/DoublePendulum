@@ -1,0 +1,42 @@
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); overflow: hidden; }
+#app { position: relative; width: 100%; height: 100vh; height: 100dvh; overflow: hidden; }
+#view { width: 100%; height: 100%; display: block; touch-action: none; }
+.heading { position: absolute; top: max(2rem, env(safe-area-inset-top)); right: max(2rem, env(safe-area-inset-right)); pointer-events: none; text-align: right; }
+.eyebrow, label, #view-status { font: 0.68rem var(--font-mono); letter-spacing: .06em; }
+.eyebrow, label { text-transform: uppercase; }
+.eyebrow { color: var(--accent-amber); }
+h1 { font: 600 clamp(1.7rem, 4vw, 3.8rem)/1.05 var(--font-display); letter-spacing: -.02em; margin: .6rem 0; }
+h2 { font: 600 1.15rem var(--font-display); margin: 0; }
+p { font-size: .8rem; color: var(--text-muted); line-height: 1.5; margin: .3rem 0; }
+aside { position: absolute; top: max(1rem, env(safe-area-inset-top)); left: max(1rem, env(safe-area-inset-left)); width: 17.5rem; max-height: calc(100% - 7rem); overflow: auto; background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem; display: flex; flex-direction: column; gap: .75rem; z-index: 2; }
+form { display: flex; flex-direction: column; gap: .7rem; }
+label { display: grid; gap: .35rem; color: var(--text-faint-on-raised); }
+input, select, button { font: .85rem var(--font-body); color: var(--text); }
+input, select { width: 100%; min-height: 36px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); padding: .4rem .5rem; accent-color: var(--accent-amber); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.check { display: flex; align-items: center; text-transform: none; letter-spacing: 0; font: .8rem var(--font-body); }
+.check input { width: 18px; min-height: 18px; }
+.hint { font-size: .72rem; }
+button { cursor: pointer; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-raised); padding: .55rem; min-height: 36px; font-family: var(--font-display); }
+button:hover { background: var(--bg-raised-hover); border-color: var(--accent-amber); }
+button.primary { background: var(--accent-amber); color: var(--bg); }
+button:disabled { opacity: .4; cursor: default; }
+:focus-visible { outline: 2px solid var(--accent-amber); outline-offset: 3px; }
+.hidden { display: none !important; }
+#view-status { position: absolute; bottom: calc(5.5rem + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); color: var(--text-muted); text-align: center; width: min(36rem, 94vw); }
+#view-status.error { color: var(--accent-amber); background: var(--bg-raised); padding: 1rem; border-radius: var(--radius); }
+.caption { position: absolute; bottom: calc(8rem + env(safe-area-inset-bottom)); right: max(2rem, env(safe-area-inset-right)); max-width: 23rem; pointer-events: none; }
+.caption span { font: 600 1.2rem var(--font-display); }
+#app-nav { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(.75rem + env(safe-area-inset-bottom)); width: min(29rem, calc(100vw - 1.25rem)); display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--bg-raised); z-index: 9; }
+#app-nav button { border: 0; background: transparent; border-radius: var(--radius-pill); min-height: 48px; color: var(--text-muted); display: grid; justify-items: center; gap: 2px; padding: 4px; font-size: .68rem; }
+#app-nav button:hover { background: var(--bg-raised-hover); color: var(--text); }
+#app-nav button[aria-pressed="true"] { color: var(--accent-amber); background: var(--accent-amber-soft); }
+svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+@media (max-width: 767.98px) {
+  .heading { top: max(1rem, env(safe-area-inset-top)); right: max(1rem, env(safe-area-inset-right)); }
+  aside { top: auto; left: .5rem; right: .5rem; width: auto; bottom: calc(74px + env(safe-area-inset-bottom)); max-height: calc(100vh - 90px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); max-height: calc(100dvh - 90px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); z-index: 8; }
+  #nav-scrim { position: fixed; inset: 0; background: var(--accent-amber-soft); z-index: 7; }
+  .caption { left: 1rem; right: 1rem; bottom: calc(8rem + env(safe-area-inset-bottom)); max-width: none; }
+  body.panel-open #view-status { visibility: hidden; }
+}

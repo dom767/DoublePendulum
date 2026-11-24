@@ -1,0 +1,4 @@
+{
+  "compilerOptions": { "checkJs": true, "noEmit": true, "target": "ES2022", "module": "NodeNext", "moduleResolution": "NodeNext", "types": ["node", "@webgpu/types"], "lib": ["ES2022", "DOM", "DOM.Iterable"], "skipLibCheck": true },
+  "include": ["src/**/*.js", "test/**/*.js", "checks/**/*.js"]
+}

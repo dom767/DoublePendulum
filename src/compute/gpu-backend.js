@@ -1,0 +1,39 @@
+import { shader } from './shader.js';
+import { DT } from '../physics/pendulum.js';
+
+export class GPUBackend {
+  /** @param {GPUDevice} device @param {GPUComputePipeline} pipeline */
+  constructor(device, pipeline) {
+    this.device=device; this.pipeline=pipeline;
+    this.state=device.createBuffer({size:32,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});
+    this.params=device.createBuffer({size:32,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+    this.read=device.createBuffer({size:32,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST});
+    this.bind=device.createBindGroup({layout:pipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:this.state}},{binding:1,resource:{buffer:this.params}}]});
+  }
+  static async create() {
+    if (!navigator.gpu) throw new Error('WebGPU is required. Open localhost in a recent Chrome or Edge with hardware acceleration enabled.');
+    const adapter=await navigator.gpu.requestAdapter();
+    if (!adapter) throw new Error('No WebGPU adapter is available. Check browser and GPU support.');
+    const device=await adapter.requestDevice();
+    const module=device.createShaderModule({code:shader});
+    const info=await module.getCompilationInfo();
+    const errors=info.messages.filter(m=>m.type==='error');
+    if(errors.length) throw new Error(errors.map(m=>m.message).join('\n'));
+    const pipeline=await device.createComputePipelineAsync({layout:'auto',compute:{module,entryPoint:'main'}});
+    return new GPUBackend(device,pipeline);
+  }
+  /** @param {number} a @param {number} b */
+  reset(a,b) { this.device.queue.writeBuffer(this.state,0,new Float32Array([a,b,0,0,a+0.0001,b,0,0])); }
+  /** @param {number} count @param {{l1:number,l2:number,m1:number,m2:number}} p */
+  async advance(count,p) {
+    this.device.queue.writeBuffer(this.params,0,new Float32Array([p.l1,p.l2,p.m1,p.m2,DT,count,0,0]));
+    const encoder=this.device.createCommandEncoder();
+    const pass=encoder.beginComputePass(); pass.setPipeline(this.pipeline); pass.setBindGroup(0,this.bind); pass.dispatchWorkgroups(2); pass.end();
+    encoder.copyBufferToBuffer(this.state,0,this.read,0,32);
+    this.device.queue.submit([encoder.finish()]);
+    await this.read.mapAsync(GPUMapMode.READ);
+    const result=new Float32Array(this.read.getMappedRange()).slice(); this.read.unmap();
+    if(!result.every(Number.isFinite)) throw new Error('Numerical overflow. Restart with shorter steps or less extreme parameters.');
+    return result;
+  }
+}

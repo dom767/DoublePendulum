@@ -1,0 +1,7 @@
+{
+  "name": "double-pendulum",
+  "private": true,
+  "type": "module",
+  "scripts": { "start": "node serve.mjs", "test": "node --experimental-vm-modules --test test", "check": "tsc -p jsconfig.json" },
+  "devDependencies": { "@types/node": "22.10.2", "@webgpu/types": "0.1.69", "typescript": "5.7.3" }
+}

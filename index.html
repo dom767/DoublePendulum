@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Double pendulum</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Space+Grotesk:wght@400;600&family=JetBrains+Mono&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter&family=Space+Grotesk&family=JetBrains+Mono&display=swap"></noscript>
+  <link rel="stylesheet" href="css/vendor/tokens.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<main id="app">
+  <canvas id="view" aria-label="Animated double pendulum, angles measured from downward vertical"></canvas>
+  <div class="heading"><span class="eyebrow">01 / An experiment in motion</span><h1>Simple rules.<br>Complex motion.</h1></div>
+  <div id="nav-scrim" class="hidden"></div>
+  <aside id="settings" aria-label="Simulation settings">
+    <h2>The experiment</h2>
+    <p>Session settings · changes restart the experiment. Reload restores defaults.</p>
+    <form id="parameters">
+      <label>Primary angle (°)<input id="angle1" type="number" min="-180" max="180" step="0.1" value="110" required></label>
+      <label>Secondary angle (°)<input id="angle2" type="number" min="-180" max="180" step="0.1" value="100" required></label>
+      <div class="pair"><label>Length 1 (m)<input id="length1" type="number" min="0.2" max="3" step="0.1" value="1" required></label><label>Length 2 (m)<input id="length2" type="number" min="0" max="3" step="0.1" value="1" required></label></div>
+      <div class="pair"><label>Mass 1 (kg)<input id="mass1" type="number" min="0.2" max="5" step="0.1" value="1" required></label><label>Mass 2 (kg)<input id="mass2" type="number" min="0.2" max="5" step="0.1" value="1" required></label></div>
+      <label>Opening scene<select id="opening"><option value="grow">Grow the second arm · 8 s</option><option value="fixed">Fixed lengths · energy conserving</option></select></label>
+      <p class="hint">Growth is a changing-length illustration using instantaneous fixed-length equations, not a model of a telescoping rod. The first 5 cm are regularised.</p>
+      <button type="submit" class="primary">Apply and restart</button>
+      <button type="button" id="defaults">Restore defaults</button>
+    </form>
+    <label>Playback speed<select id="speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+    <label class="check"><input id="trails" type="checkbox" checked> Show trails</label>
+    <label class="check"><input id="compare" type="checkbox"> Nearby trajectory (+0.0001 rad)</label>
+    <p>No friction. Zero initial velocities. Gravity 9.81 m/s². All integration runs on WebGPU.</p>
+  </aside>
+  <div id="view-status" role="status">Initialising WebGPU…</div>
+  <div class="caption"><span id="phase">From one arm to two</span><p id="explanation">A second degree of freedom opens up a much richer range of motion.</p></div>
+  <nav id="app-nav" aria-label="Simulation controls">
+    <button id="restart" aria-label="Home: restart experiment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8M6 9v12h12V9M10 21v-7h4v7"/></svg><span>Home</span></button>
+    <button id="settings-toggle" aria-label="Toggle settings" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6"/></svg><span>Settings</span></button>
+    <button id="fullscreen" aria-label="Toggle fullscreen" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></svg><span id="full-label">Full</span></button>
+    <button id="pause" aria-label="Pause simulation" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v16M16 4v16"/></svg><span id="pause-label">Pause</span></button>
+    <button id="step" aria-label="Pause and advance one integration step" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 12 8-12 8zM20 4v16"/></svg><span>Step</span></button>
+  </nav>
+</main>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
