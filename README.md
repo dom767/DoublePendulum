@@ -40,29 +40,28 @@ The browser checks also run a 6×6 ensemble for 480 steps, compare every cell bi
 
 ## Guided transition — one to 25,600
 
-From the single view, click **Grid**, or use **Play grid story** in Settings. The opening arm finishes growing first if necessary. A 100-second guided sequence then follows the currently running primary pendulum into the top-left of a nested field:
+From the single view, click **Grid**, or use **Play grid story** in Settings. The opening arm finishes growing first if necessary. A 165-second guided sequence follows the original pendulum into four separate experiments. Only the active grid exists and is drawn; there is no larger field peeking into the small-grid chapters.
 
 | Story seconds | Visual |
 |---|---|
-| 0–5 | Hold on the original experiment |
-| 5–13 | Ease the camera back to 2×2 |
-| 13–17 | Hold on four pendulums |
-| 17–29 | Pull back to 10×10 |
-| 29–34 | Hold on a hundred experiments |
-| 34–38 | Fade the moving poses out, reset every cell, fade starting poses back in |
-| 38–44 | Slowly fade in the angle colours, with all pendulums stationary |
-| 44–48 | Read the initial-colour field |
-| 48–60 | Restart all simulations together and watch colours evolve |
-| 60–72 | Ease back to 40×40 |
-| 72–77 | Hold on 1,600 experiments |
-| 77–92 | Ease back to 160×160 |
-| 92–100 | Closing chapter, with the field continuing to evolve |
+| 0–12 | Hold the original, then ease out to only four pendulums |
+| 12–25 | Pause, zoom in on the four, reset to almost identical angles at 21 s, hold |
+| 25–45 | Run four nearby starts to demonstrate sensitivity to initial conditions |
+| 46–64 | Reveal only 10×10, pause, frame closer, reset across the full angle domain |
+| 64–74 | Hold the reset poses, fade angle colours in over 66–72 s, hold again |
+| 74–89 | Run all 100 pendulums together |
+| 90–108 | Reveal only 40×40, pause, zoom in and reset across the full angle domain |
+| 112–126 | Run all 1,600 pendulums from rest |
+| 127–147 | Reveal only 160×160, pause, zoom in and reset across the full angle domain |
+| 151–165 | Run all 25,600 pendulums from rest; the closing field continues evolving |
 
-Chapter headings and captions fade between beats. Camera motion uses quintic easing with zero endpoint velocity/acceleration; the first frame shares the single-view geometry. The same top-left pendulum remains present as the view widens. Neighbouring initial angles differ by 2.25°; the complete 160×160 field covers one 360° period on each axis, anchored to the original initial angles. The original cell carries its current pose and angular velocities into the opening shot, while new experiments begin at rest. The visible reset synchronises **every** cell at its initial angles with zero velocities before the colour reveal. After that reset, hidden and visible cells always advance together. Zooming changes the camera, never the initial samples or integration history.
+Chapter headings and captions fade between beats. Camera motion uses quintic easing with zero endpoint velocity/acceleration; the first frame shares the single-view geometry. The original cell carries its current pose and angular velocities into the top-left of the four-pendulum opening. After pausing and framing closer, the four reset around the original starting angles: each axis has a 0.02° span, with cell-centre samples 0.01° apart. The 20-second run allows the default nearby starts to separate, demonstrating sensitivity without claiming that every trajectory is chaotic.
 
-**Pause** freezes both chapters and physics. **Replay** returns to the captured opening state, and **Explore grid** keeps the current field and simulation history for manual inspection. After the closing chapter, the field continues evolving until paused or exited. Home cancels the story and restarts the single experiment. Physics speed changes simulation speed; chapter pacing remains independent. Story timing pauses in hidden tabs and slows through long browser stalls instead of skipping beats. GPU steps are retained while catching up; rendering the camera uses the latest completed GPU readback independently of new GPU work.
+The 10×10, 40×40 and 160×160 chapters are fresh full-domain samplings, not camera crops of a precomputed 160×160 field. Each includes both −180° and +180° at its axis endpoints: primary angle increases rightward, secondary angle increases upward. Equivalent periodic edge orientations deliberately appear twice. These endpoint-inclusive story grids differ from the cell-centre convention of manually configured grids. Existing poses are retained at the top-left during the reveal, then **every** cell is explicitly reset to its new starting angles and zero angular velocities before the fresh run. Colour encodes the current angles; the 10×10 colour reveal happens while physics is held still.
 
-Guided/instant switching is a tab-only preference, applied immediately and restored to Guided by Restore defaults or reload. Guided mode uses the applied single-experiment physics and its own anchored domain, rather than draft grid settings. It starts playing on request, except for reduced-motion users, who start paused and receive camera cuts instead of spatial zoom. This sequence is an implemented part of the eventual presentation, not the full two-minute milestone 5 production.
+**Pause** freezes both chapters and physics. The automatic experiment holds pause physics while the camera and captions continue. **Replay** returns to the captured four-cell opening state. **Explore grid** keeps the active grid's size, current state and simulation history; a later manual Apply resamples using the manual cell-centre convention. After the closing chapter, the field continues evolving until paused or exited. Home cancels the story and restarts the single experiment. Physics speed changes simulation speed; chapter pacing remains independent. Story timing pauses in hidden tabs and slows through long browser stalls instead of skipping beats. Rendering uses the latest completed GPU readback independently of new GPU work.
+
+Guided/instant switching is a tab-only preference, applied immediately and restored to Guided by Restore defaults or reload. Guided mode uses the applied single-experiment physics and the nearby/full-domain stages above, rather than draft grid settings. It starts playing on request, except for reduced-motion users, who start paused and receive camera cuts instead of spatial zoom. This expanded sequence is an implemented presentation segment; editing it down to the eventual two-minute production remains part of milestone 5.
 
 For target-hardware verification, `/checks/gpu.html` now also runs 25,600 states for 32 steps and checks dense corners against isolated runs. It reports compute-plus-readback time; that excludes drawing and is not a recording frame-rate benchmark. Actual GPU performance and visual pacing must still be reviewed in the recording browser.
 

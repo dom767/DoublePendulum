@@ -33,11 +33,12 @@ function mean(list){return list.length?list.reduce((a,b)=>a+b,0)/list.length:0;}
 
 try {
   const gpu=await GPUBackend.create();
-  const field=storyEnsemble(1.9198621771937625,1.7453292519943295);
+  const field=storyEnsemble(40,1.9198621771937625,1.7453292519943295);
   let states=field.initial.slice();
   gpu.resetStates(states);
   states=await gpu.advance(32,p);
-  let storyElapsed=72; // hold 40×40 — live Chrome previously ~7fps here
+  let storyElapsed=114; // running 40×40, followed by the staged 160×160 experiment
+  let activeStage=2,resetApplied=true;
   let time=32*DT, steps=32, accumulator=0, last=0, busy=false, lastGpu=0;
   let frames=0, started=performance.now();
   let dwell40Until=0, phase='dwell40';
@@ -50,6 +51,14 @@ try {
   }
 
   async function advance(scene) {
+    if(scene.stage!==activeStage) {
+      states=storyEnsemble(scene.size,1.9198621771937625,1.7453292519943295).initial.slice();
+      gpu.resetStates(states);activeStage=scene.stage;resetApplied=false;accumulator=0;time=0;steps=0;
+    }
+    if(scene.reset&&!resetApplied){
+      states=storyEnsemble(scene.size,1.9198621771937625,1.7453292519943295).initial.slice();
+      gpu.resetStates(states);resetApplied=true;accumulator=0;time=0;steps=0;
+    }
     if(!scene.running){accumulator=0;return 0;}
     const count=Math.min(32,Math.floor(accumulator/DT));
     accumulator-=count*DT;
@@ -102,13 +111,13 @@ try {
     frames++;
     accumulator+=elapsed;
     if(phase==='dwell40'){
-      storyElapsed=74;
-      if(performance.now()>=dwell40Until){phase='run';storyElapsed=77;}
+      storyElapsed=114;
+      if(performance.now()>=dwell40Until){phase='run';storyElapsed=125;}
     } else {
       storyElapsed=Math.min(STORY_DURATION,storyElapsed+Math.min(0.25,elapsed*STORY_RATE));
     }
     const scene=storyFrame(storyElapsed,false);
-    const drawMs=paint(scene);
+    const drawMs=scene.stage===activeStage?paint(scene):0;
     const name=bucketFor(scene);
     if(name&&frameMs>0&&frameMs<250){
       const s=stats[name];

@@ -80,9 +80,9 @@ element('play-story').addEventListener('click',requestStory);
 element('replay-story').addEventListener('click',()=>{replayRequested=true;});
 element('leave-story').addEventListener('click',()=>{exploreRequested=true;});
 function beginStory() {
-  const field=storyEnsemble(singleInitial[0],singleInitial[1]);
+  const field=storyEnsemble(2,singleInitial[0],singleInitial[1]);
   const seed=field.initial.slice();seed.set(states.slice(0,4));
-  story={elapsed:0,reset:false,seed,field,trail:view.paths[0].map(point=>point.slice()),initialTime:time,initialSteps:steps};
+  story={elapsed:0,stage:0,reset:false,seed,field,trail:view.paths[0].map(point=>point.slice()),initialTime:time,initialSteps:steps};
   ensemble=field;states=seed.slice();backend.resetStates(seed);mode='story';storyRequested=false;
   accumulator=0;stepPending=false;syncMode();
 }
@@ -93,22 +93,33 @@ function paintStory() {
   element('story-title').textContent=scene.chapter.title;element('story-caption').textContent=scene.chapter.text;
   element('story-copy').style.opacity=String(scene.opacity);
   element('story-progress').textContent=`${Math.floor(story.elapsed)} / ${STORY_DURATION} s${scene.done?' · complete':''}`;
-  status.textContent=`WebGPU · 25,600 experiments · t = ${time.toFixed(2)} s · ${steps} steps${paused?' · paused':''}${accumulator>.25?' · catching up':''}`;
+  status.textContent=`WebGPU · ${ensemble.size**2} experiments · t = ${time.toFixed(2)} s · ${steps} steps${paused?' · paused':''}${!scene.running?' · experiment held':''}${accumulator>.25?' · catching up':''}`;
   return scene;
 }
 async function advanceStory() {
   if(replayRequested){
-    backend.resetStates(story.seed);states=story.seed.slice();story.elapsed=0;story.reset=false;time=story.initialTime;steps=story.initialSteps;
+    ensemble=story.field;backend.resetStates(story.seed);states=story.seed.slice();story.elapsed=0;story.stage=0;story.reset=false;time=story.initialTime;steps=story.initialSteps;
     accumulator=0;replayRequested=false;setPaused(reducedMotion);
   }
   if(exploreRequested){
     story=null;exploreRequested=false;mode='grid';requestedMode='grid';
-    input('grid-size').value='160';input('domain-preset').value='custom';
+    input('grid-size').value=String(ensemble.size);input('domain-preset').value='custom';
     for(const key of ['center1','center2','span1','span2'])input(key).value=String(key.startsWith('center')?((ensemble.domain[key]+180)%360+360)%360-180:ensemble.domain[key]);
     for(const [id,value] of [['length1',p.l1],['length2',p.l2],['mass1',p.m1],['mass2',p.m2]])input(id).value=String(value);
     input('colour-source').value='current';select(0);syncMode();return;
   }
   const scene=storyFrame(story.elapsed,reducedMotion);
+  if(scene.stage!==story.stage) {
+    const previous=ensemble,oldStates=states;
+    ensemble=storyEnsemble(scene.size,singleInitial[0],singleInitial[1]);
+    states=ensemble.initial.slice();
+    // Retain the smaller experiment until the next explicit reset, rather than popping its poses.
+    for(let row=0;row<previous.size;row++)for(let col=0;col<previous.size;col++) {
+      const old=(row*previous.size+col)*4,next=(row*ensemble.size+col)*4;
+      states.set(oldStates.subarray(old,old+4),next);
+    }
+    backend.resetStates(states);story.stage=scene.stage;story.reset=false;accumulator=0;time=0;steps=0;
+  }
   if(scene.reset&&!story.reset){backend.resetStates(ensemble.initial);states=ensemble.initial.slice();time=0;steps=0;story.reset=true;accumulator=0;}
   if(!scene.running)accumulator=0;
   const count=paused||!scene.running?0:Math.min(32,Math.floor(accumulator/DT));
@@ -167,7 +178,8 @@ async function frame(now) {
   if(!paused && !document.hidden) accumulator+=elapsed*number('speed');
   if(mode==='story') {
     if(!paused&&!document.hidden)story.elapsed=Math.min(STORY_DURATION,story.elapsed+Math.min(.1,elapsed));
-    try {paintStory();}catch(error){fail(error);return;}
+    // A boundary is applied by the serialized GPU loop before rendering its differently sized field.
+    if(storyFrame(story.elapsed,reducedMotion).stage===story.stage)try {paintStory();}catch(error){fail(error);return;}
   }
   if(!busy && backend) {
     busy=true;

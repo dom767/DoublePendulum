@@ -25,34 +25,35 @@ export class StoryGridView {
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
     const side=Math.max(1,Math.min(w-48,h-310)),x=(w-side)/2,y=145+(h-310-side)/2;
     const original=SingleView.geometry(w,h,p),cell0=original.scale*(p.l1+p.l2)/.37;
-    const u=Math.min(1,Math.max(0,scene.cells-1));
-    const cell=scene.cells<2?Math.exp(Math.log(cell0)*(1-u)+Math.log(side/2)*u):side/scene.cells;
-    const ox=scene.cells<2?(original.cx-cell0/2)*(1-u)+x*u:x;
-    const oy=scene.cells<2?(original.cy-cell0/2)*(1-u)+y*u:y;
-    const scale=cell*.37/(p.l1+p.l2),reveal=ease((seconds-5)/5),rodAlpha=1-ease((9-cell)/7);
+    const n=scene.size,u=scene.opening,opening=scene.stage===0&&seconds<12;
+    const cell=opening?Math.exp(Math.log(cell0)*(1-u)+Math.log(side/2.5)*u):side/scene.cells;
+    const targetX=x+(side-cell*n)/2,targetY=y+(side-cell*n)/2;
+    const ox=opening?(original.cx-cell0/2)*(1-u)+targetX*u:targetX;
+    const oy=opening?(original.cy-cell0/2)*(1-u)+targetY*u:targetY;
+    const scale=cell*.37/(p.l1+p.l2),reveal=ease((seconds-4)/5),rodAlpha=(1-ease((9-cell)/7))*ease((24-scene.cells)/4);
     const clipTop=120*u,clipBottom=h-145*u;
     ctx.save();ctx.beginPath();ctx.rect(0,clipTop,w,clipBottom-clipTop);ctx.clip();
     // Always blit colours as one ImageData — per-cell fillRect at 40×40 stalled Chrome (~7fps) via GPU contention.
     if(scene.colour>0&&this.ensureField()) {
       const field=/** @type {HTMLCanvasElement} */(this.field),fieldCtx=/** @type {CanvasRenderingContext2D} */(this.fieldCtx);
-      if(field.width!==160||field.height!==160){field.width=160;field.height=160;this.image=null;}
-      if(!this.image)this.image=fieldCtx.createImageData(160,160);
+      if(field.width!==n||field.height!==n){field.width=n;field.height=n;this.image=null;}
+      if(!this.image)this.image=fieldCtx.createImageData(n,n);
       const colour=scene.colour,fade=scene.resetFade;
-      writeAnglePixels(this.image.data,states,25600,i=>{
-        const row=Math.floor(i/160),col=i%160;
+      writeAnglePixels(this.image.data,states,n*n,i=>{
+        const row=Math.floor(i/n),col=i%n;
         return (row===0&&col===0?1:reveal)*fade*colour;
       });
       fieldCtx.putImageData(this.image,0,0);
-      ctx.imageSmoothingEnabled=false;ctx.globalAlpha=1;ctx.drawImage(field,ox,oy,cell*160,cell*160);ctx.imageSmoothingEnabled=true;
+      ctx.imageSmoothingEnabled=false;ctx.globalAlpha=1;ctx.drawImage(field,ox,oy,cell*n,cell*n);ctx.imageSmoothingEnabled=true;
     }
     // Rods/borders only while cells are large enough to read; dense zooms are colour fields.
     const drawRods=rodAlpha>.02&&cell>=8&&scene.cells<24;
     const drawBorders=cell>8&&scene.cells<24&&scene.colour>0;
     if(!drawRods&&!drawBorders){ctx.restore();ctx.globalAlpha=1;return;}
-    const minCol=Math.max(0,Math.floor(-ox/cell)),maxCol=Math.min(160,Math.ceil((w-ox)/cell));
-    const minRow=Math.max(0,Math.floor((clipTop-oy)/cell)),maxRow=Math.min(160,Math.ceil((clipBottom-oy)/cell));
+    const minCol=Math.max(0,Math.floor(-ox/cell)),maxCol=Math.min(n,Math.ceil((w-ox)/cell));
+    const minRow=Math.max(0,Math.floor((clipTop-oy)/cell)),maxRow=Math.min(n,Math.ceil((clipBottom-oy)/cell));
     for(let row=minRow;row<maxRow;row++)for(let col=minCol;col<maxCol;col++) {
-      const i=(row*160+col)*4,px=ox+col*cell,py=oy+row*cell,cx=px+cell/2,cy=py+cell/2;
+      const i=(row*n+col)*4,px=ox+col*cell,py=oy+row*cell,cx=px+cell/2,cy=py+cell/2;
       const alpha=(row===0&&col===0?1:reveal)*scene.resetFade;
       if(drawBorders){ctx.globalAlpha=alpha*reveal*(1-scene.colour*.75)*ease((cell-4)/8);ctx.strokeStyle='#524634';ctx.lineWidth=1;ctx.strokeRect(px,py,cell,cell);}
       if(!drawRods)continue;

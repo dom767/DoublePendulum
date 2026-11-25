@@ -4,9 +4,9 @@
 
 - [ ] **1 — Single pendulum and GPU physics:** implemented; real-browser/GPU acceptance remains outstanding.
 - [ ] **2 — Visible grid and periodic colour map:** implemented; real-browser/GPU acceptance remains outstanding.
-- [ ] **3 — Pixel field and density transition:** partial: nested 160×160 field and guided camera reveal implemented; pixel-resolution sampling, domain zoom and recording-performance acceptance remain outstanding.
+- [ ] **3 — Pixel field and density transition:** partial: staged grids up to 160×160 and guided camera reveals implemented; pixel-resolution sampling, domain zoom and recording-performance acceptance remain outstanding.
 - [ ] **4 — Fixed-duration maps and exploration:** unbuilt.
-- [ ] **5 — Two-minute guided presentation:** partial: 100-second single-to-grid story implemented; full 120-second presentation with maps remains outstanding.
+- [ ] **5 — Two-minute guided presentation:** partial: revised 165-second staged story implemented; full 120-second edit with maps remains outstanding.
 
 ## Milestone 1 implementation
 
@@ -54,6 +54,23 @@ Launching Chrome for automated browser verification was blocked by the execution
 Milestone 2 verification: `npm test` passes all 15 tests, including packaging; `npm run check`, source syntax checks and `git diff --check` pass. Local HTTP smoke checks return 200 for the app, new ensemble/grid/colour/domain modules and GPU check page on claimed port 7101. The preview server is stopped before handoff. The test command now uses directory discovery because Node 20 does not expand the previous quoted glob. Milestone 3 remains unbuilt. No production deployment performed.
 
 ## Guided single-to-grid story
+
+The original 100-second nested-field implementation below is historical. The revised flow immediately below supersedes it.
+
+### Revised flow — 2026-11-25
+
+- [x] Only the active bounded ensemble exists: 4 → 100 → 1,600 → 25,600 GPU states. Renderer and colour image use that size, without out-of-stage neighbours.
+- [x] 2×2 reveal, physics hold, closer framing, zero-velocity reset to four nearby starts (0.01° neighbour spacing), then a 20-second run.
+- [x] 10×10 reveal/hold/closer framing; reset at 64 s to endpoint-inclusive −180°…+180° on both axes; colour reveal at 66–72 s; run at 74 s.
+- [x] 40×40 and 160×160 repeat the reveal/hold/closer-frame/reset/run sequence, resetting at 108/147 s and running at 112/151 s.
+- [x] 165-second pacing, sensitivity captions and full-domain axis explanations. No promise of chaos for all initial conditions.
+- [x] Replay restores the four-cell opening; manual exploration retains the active stage's size and history.
+- [x] Tests cover bounded stage counts, fresh resets, endpoint sampling, held colour reveal, resumed GPU work and replay/exit. FPS harness follows the new stage sizes/resets.
+- [ ] Actual browser visual/pacing review and GPU acceptance for the revised flow.
+
+Verification: 22 Node tests pass, including packaging, bounded rendering and the full staged UI flow; TypeScript, syntax and whitespace checks pass. Local HTTP smoke checks return 200 for the app, revised story modules and FPS harness on claimed port 7101; the preview server is stopped before handoff. Default reference physics separates the four nearby starts during the 20-second run. No browser/GPU visual pass or deployment is claimed.
+
+### Previous flow (superseded)
 
 - [x] Default Grid action starts a paced 100-second guided transition; instant switch remains a session setting.
 - [x] Continuous eased camera: single → 2×2 → 10×10 → 40×40 → 160×160, with reading holds.

@@ -11,7 +11,7 @@
 
 Milestones 1 and 2 are implemented; outstanding browser acceptance is tracked in PROGRESS.md. Later milestones remain separate phases. The user's WebGPU decision supersedes the earlier CPU-first/fallback proposal.
 
-Follow-up build: the requested single-to-grid transition now has a separate 100-second guided story: preserve the original experiment at top-left, ease to 2×2 then 10×10, reset and fade initial-angle colours in, restart physics, then ease to 40×40 and 160×160. This brings forward parts of milestones 3 and 5; it does not complete pixel-resolution sampling, maps or the full two-minute presentation. Pacing and controls are documented in README.md.
+Follow-up build, revised flow: a 165-second guided story preserves the original at the top-left of only four pendulums, pauses and frames them closer, resets them to nearly identical angles, then runs to demonstrate sensitivity. Separate bounded 10×10, 40×40 and 160×160 stages each reveal, pause, frame closer, reset across −180° to +180° on both axes, and run again. Angle colours fade in after the 10×10 reset. This supersedes the earlier continuously nested 100-second reveal. It brings forward parts of milestones 3 and 5 without completing pixel-resolution sampling, maps or the eventual two-minute edit. Pacing and controls are documented in README.md.
 
 ## 1. Physics and single-pendulum view
 
