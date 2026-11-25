@@ -1,6 +1,6 @@
 import { SingleView } from './single.js';
 import { ease } from '../story/grid-story.js';
-import { angleColour, writeAnglePixels } from '../render/angle-colour.js';
+import { writeAnglePixels } from '../render/angle-colour.js';
 
 export class StoryGridView {
   /** @param {HTMLCanvasElement} canvas */
@@ -32,27 +32,30 @@ export class StoryGridView {
     const scale=cell*.37/(p.l1+p.l2),reveal=ease((seconds-5)/5),rodAlpha=1-ease((9-cell)/7);
     const clipTop=120*u,clipBottom=h-145*u;
     ctx.save();ctx.beginPath();ctx.rect(0,clipTop,w,clipBottom-clipTop);ctx.clip();
-    // Dense colour fields use one scaled blit; sparse zooms keep per-cell fills with culling.
-    if(scene.colour>0&&cell<=5&&this.ensureField()) {
+    // Always blit colours as one ImageData — per-cell fillRect at 40×40 stalled Chrome (~7fps) via GPU contention.
+    if(scene.colour>0&&this.ensureField()) {
       const field=/** @type {HTMLCanvasElement} */(this.field),fieldCtx=/** @type {CanvasRenderingContext2D} */(this.fieldCtx);
       if(field.width!==160||field.height!==160){field.width=160;field.height=160;this.image=null;}
       if(!this.image)this.image=fieldCtx.createImageData(160,160);
+      const colour=scene.colour,fade=scene.resetFade;
       writeAnglePixels(this.image.data,states,25600,i=>{
         const row=Math.floor(i/160),col=i%160;
-        return (row===0&&col===0?1:reveal)*scene.resetFade*scene.colour;
+        return (row===0&&col===0?1:reveal)*fade*colour;
       });
       fieldCtx.putImageData(this.image,0,0);
       ctx.imageSmoothingEnabled=false;ctx.globalAlpha=1;ctx.drawImage(field,ox,oy,cell*160,cell*160);ctx.imageSmoothingEnabled=true;
     }
+    // Rods/borders only while cells are large enough to read; dense zooms are colour fields.
+    const drawRods=rodAlpha>.02&&cell>=8&&scene.cells<24;
+    const drawBorders=cell>8&&scene.cells<24&&scene.colour>0;
+    if(!drawRods&&!drawBorders){ctx.restore();ctx.globalAlpha=1;return;}
     const minCol=Math.max(0,Math.floor(-ox/cell)),maxCol=Math.min(160,Math.ceil((w-ox)/cell));
     const minRow=Math.max(0,Math.floor((clipTop-oy)/cell)),maxRow=Math.min(160,Math.ceil((clipBottom-oy)/cell));
     for(let row=minRow;row<maxRow;row++)for(let col=minCol;col<maxCol;col++) {
       const i=(row*160+col)*4,px=ox+col*cell,py=oy+row*cell,cx=px+cell/2,cy=py+cell/2;
       const alpha=(row===0&&col===0?1:reveal)*scene.resetFade;
-      if(scene.colour>0&&cell>5){ctx.globalAlpha=alpha*scene.colour;ctx.fillStyle=angleColour(states[i],states[i+1]);ctx.fillRect(px,py,cell+.3,cell+.3);}
-      if(cell>5){ctx.globalAlpha=alpha*reveal*(1-scene.colour*.75)*ease((cell-4)/8);ctx.strokeStyle='#524634';ctx.lineWidth=1;ctx.strokeRect(px,py,cell,cell);}
-      // Below ~4px the arms are invisible; skip the stroke storm that made 160×160 crawl.
-      if(rodAlpha<=.02||cell<4)continue;
+      if(drawBorders){ctx.globalAlpha=alpha*reveal*(1-scene.colour*.75)*ease((cell-4)/8);ctx.strokeStyle='#524634';ctx.lineWidth=1;ctx.strokeRect(px,py,cell,cell);}
+      if(!drawRods)continue;
       const ax=cx+Math.sin(states[i])*p.l1*scale,ay=cy+Math.cos(states[i])*p.l1*scale;
       const bx=ax+Math.sin(states[i+1])*p.l2*scale,by=ay+Math.cos(states[i+1])*p.l2*scale;
       if(row===0&&col===0&&seconds<13) {
@@ -63,7 +66,6 @@ export class StoryGridView {
       }
       ctx.globalAlpha=alpha*rodAlpha;ctx.strokeStyle=scene.colour>.5?'#1c1812':'#f2a544';ctx.lineWidth=Math.max(.7,Math.min(3,cell/65));
       ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
-      // Fade smoothly from the original amber rods to dark silhouettes over colour.
       if(scene.colour>0&&scene.colour<=.5){ctx.globalAlpha=alpha*rodAlpha*scene.colour*2;ctx.strokeStyle='#1c1812';ctx.stroke();}
       ctx.globalAlpha=alpha*rodAlpha;ctx.fillStyle='#f2a544';
       for(const [px,py,m] of [[ax,ay,p.m1],[bx,by,p.m2]]){ctx.beginPath();ctx.arc(px,py,Math.min(4+Math.sqrt(m)*3,Math.max(1,cell/24)),0,Math.PI*2);ctx.fill();}

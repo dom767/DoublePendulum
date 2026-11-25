@@ -49,9 +49,17 @@ export class GPUBackend {
   }
   async readState() {
     await this.read.mapAsync(GPUMapMode.READ);
-    const result=new Float32Array(this.read.getMappedRange()).slice(); this.read.unmap();
-    if(!result.every(Number.isFinite)) throw new Error('Numerical overflow. Restart with shorter steps or less extreme parameters.');
-    return result;
+    const mapped=new Float32Array(this.read.getMappedRange());
+    // Double-buffer so the previous frame can keep painting while the next readback fills.
+    this.outFlip=!this.outFlip;
+    let out=this.outFlip?this.outA:this.outB;
+    if(!out||out.length!==mapped.length){
+      out=new Float32Array(mapped.length);
+      if(this.outFlip)this.outA=out;else this.outB=out;
+    }
+    out.set(mapped); this.read.unmap();
+    for(let i=0;i<out.length;i++) if(!Number.isFinite(out[i])) throw new Error('Numerical overflow. Restart with shorter steps or less extreme parameters.');
+    return out;
   }
   /** @param {number} count @param {{l1:number,l2:number,m1:number,m2:number}} p */
   async advance(count,p) {

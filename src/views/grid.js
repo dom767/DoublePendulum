@@ -38,7 +38,8 @@ export class GridView {
     writeAnglePixels(this.image.data,colours,count);
     fieldCtx.putImageData(this.image,0,0);
     ctx.imageSmoothingEnabled=false;ctx.drawImage(field,x,y,side,side);ctx.imageSmoothingEnabled=true;
-    if(cell>=5) for(let row=0;row<n;row++)for(let col=0;col<n;col++) {
+    // Rods stay Canvas2D; drop them once the field is dense enough that colour carries the story.
+    if(cell>=8&&n<40) for(let row=0;row<n;row++)for(let col=0;col<n;col++) {
       const index=row*n+col, i=index*4, px=x+col*cell,py=y+row*cell;
       const scale=cell*.37/(p.l1+p.l2),cx=px+cell/2,cy=py+cell/2;
       const ax=cx+Math.sin(states[i])*p.l1*scale,ay=cy+Math.cos(states[i])*p.l1*scale;

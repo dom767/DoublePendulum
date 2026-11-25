@@ -14,11 +14,15 @@ export function angleColour(a,b) { return `rgb(${angleRGB(a,b).join(',')})`; }
  * Avoids tens of thousands of Canvas fillStyle changes on dense grids.
  * @param {Uint8ClampedArray} pixels @param {Float32Array} angles stride-4 θ₁,θ₂,…
  * @param {number} count @param {(index:number)=>number} [alphaAt] 0–1 per cell */
-export function writeAnglePixels(pixels,angles,count,alphaAt=()=>1) {
+export function writeAnglePixels(pixels,angles,count,alphaAt) {
   if(pixels.length<count*4||angles.length<count*4) throw new Error('Angle pixel buffer too small.');
+  // Inline RGB to avoid per-cell array allocation on 25,600-wide fields.
   for(let i=0;i<count;i++) {
-    const s=i*4,[r,g,b]=angleRGB(angles[s],angles[s+1]),a=Math.round(255*Math.max(0,Math.min(1,alphaAt(i))));
-    pixels[s]=r;pixels[s+1]=g;pixels[s+2]=b;pixels[s+3]=a;
+    const s=i*4,a0=angles[s],b0=angles[s+1];
+    pixels[s]=Math.round(255*(.5+.25*(Math.cos(a0)+Math.cos(b0))));
+    pixels[s+1]=Math.round(255*(.5+.25*(Math.sin(a0)+Math.cos(b0+Math.PI/3))));
+    pixels[s+2]=Math.round(255*(.5+.25*(Math.cos(a0+Math.PI/3)+Math.sin(b0))));
+    pixels[s+3]=alphaAt?Math.round(255*Math.max(0,Math.min(1,alphaAt(i)))):255;
   }
   return pixels;
 }
