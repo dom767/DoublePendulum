@@ -46,20 +46,26 @@ From the single view, click **Grid**, or use **Play grid story** in Settings. Th
 
 | Story seconds | Visual |
 |---|---|
-| 0–12 | Hold the original, then ease out to only four pendulums |
-| 12–25 | Pause, zoom in on the four, reset to almost identical angles at 21 s, hold |
-| 25–45 | Run four nearby starts to demonstrate sensitivity to initial conditions |
-| 46–64 | Reveal only 10×10, pause, frame closer, reset across the full angle domain |
-| 64–74 | Hold the reset poses, fade angle colours in over 66–72 s, hold again |
-| 74–89 | Run all 100 pendulums together |
-| 90–108 | Reveal only 40×40, pause, zoom in and reset across the full angle domain |
-| 112–126 | Run all 1,600 pendulums from rest |
-| 127–147 | Reveal only 160×160, pause, zoom in and reset across the full angle domain |
+| 0–4 | Hold on the original pendulum |
+| 4–12 | Keep the original visible, fade in three neighbours, reset at 9 s |
+| 12–20 | Pull directly out to the final 2×2 framing |
+| 25–46 | Run four nearby starts to demonstrate sensitivity to initial conditions |
+| 46–54 | Keep the four visible, fade in new cells, reset the 10×10 positions at 51 s |
+| 54–64 | Pull directly out to the final 10×10 framing |
+| 66–74 | Fade angle colours in over 66–72 s, hold again |
+| 74–90 | Run all 100 pendulums together |
+| 90–98 | Keep the hundred visible, fade in new cells, reset the 40×40 positions at 95 s |
+| 98–108 | Pull directly out to the final 40×40 framing |
+| 112–127 | Run all 1,600 pendulums from rest |
+| 127–135 | Keep the existing grid visible, fade in new cells, reset the 160×160 positions at 132 s |
+| 135–147 | Pull directly out to the final 160×160 framing |
 | 151–165 | Run all 25,600 pendulums from rest; the closing field continues evolving |
 
-Chapter headings and captions fade between beats. Camera motion uses quintic easing with zero endpoint velocity/acceleration; the first frame shares the single-view geometry. The original cell carries its current pose and angular velocities into the top-left of the four-pendulum opening. After pausing and framing closer, the four reset around the original starting angles: each axis has a 0.02° span, with cell-centre samples 0.01° apart. The 20-second run allows the default nearby starts to separate, demonstrating sensitivity without claiming that every trajectory is chaotic.
+Chapter headings and captions fade between beats. Camera motion uses quintic easing with zero endpoint velocity/acceleration; the first frame shares the single-view geometry. Every expansion follows the same order: hold existing cells at full opacity and the same camera position, fade in only new rows/columns over four seconds, ease the reset poses over two seconds, then pull straight back to the final framing. Resets never fade the scene away; angles follow the shortest angular path while physics is held. There is no overshoot or follow-up zoom-in. New cells outside the viewport become visible naturally as the camera pulls back.
 
-The 10×10, 40×40 and 160×160 chapters are fresh full-domain samplings, not camera crops of a precomputed 160×160 field. Each includes both −180° and +180° at its axis endpoints: primary angle increases rightward, secondary angle increases upward. Equivalent periodic edge orientations deliberately appear twice. These endpoint-inclusive story grids differ from the cell-centre convention of manually configured grids. Existing poses are retained at the top-left during the reveal, then **every** cell is explicitly reset to its new starting angles and zero angular velocities before the fresh run. Colour encodes the current angles; the 10×10 colour reveal happens while physics is held still.
+The original cell carries its current pose and angular velocities into the top-left of the four-pendulum opening. The four reset around the original starting angles: each axis has a 0.02° span, with cell-centre samples 0.01° apart. The run allows the default nearby starts to separate, demonstrating sensitivity without claiming that every trajectory is chaotic.
+
+The 10×10, 40×40 and 160×160 chapters are fresh full-domain samplings, not camera crops of a precomputed 160×160 field. Each includes both −180° and +180° at its axis endpoints: primary angle increases rightward, secondary angle increases upward. Equivalent periodic edge orientations deliberately appear twice. These endpoint-inclusive story grids differ from the cell-centre convention of manually configured grids. Existing poses are retained at the top-left during the reveal, with the same cell size and screen anchor across the boundary. **Every** cell is then reset to its new starting angles and zero angular velocities before the zoom and fresh run. Colour follows the displayed angles through the reset; the 10×10 colour reveal happens while physics is held still.
 
 **Pause** freezes both chapters and physics. The automatic experiment holds pause physics while the camera and captions continue. **Replay** returns to the captured four-cell opening state. **Explore grid** keeps the active grid's size, current state and simulation history; a later manual Apply resamples using the manual cell-centre convention. After the closing chapter, the field continues evolving until paused or exited. Home cancels the story and restarts the single experiment. Physics speed changes simulation speed; chapter pacing remains independent. Story timing pauses in hidden tabs and slows through long browser stalls instead of skipping beats. Rendering uses the latest completed GPU readback independently of new GPU work.
 

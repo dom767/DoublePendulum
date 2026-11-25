@@ -1,6 +1,18 @@
 import { SingleView } from './single.js';
-import { ease } from '../story/grid-story.js';
+import { ease, resetPoses, storyCellOpacity } from '../story/grid-story.js';
 import { writeAnglePixels } from '../render/angle-colour.js';
+
+/** Anchor expansions to the existing grid's top-left, rather than recentering a larger world.
+ * @param {number} w @param {number} h @param {{l1:number,l2:number}} p
+ * @param {ReturnType<typeof import('../story/grid-story.js').storyFrame>} scene */
+export function storyGeometry(w,h,p,scene) {
+  const side=Math.max(1,Math.min(w-48,h-310)),x=(w-side)/2,y=145+(h-310-side)/2;
+  const original=SingleView.geometry(w,h,p),cell0=original.scale*(p.l1+p.l2)/.37,u=scene.opening;
+  const opening=scene.stage===0;
+  return {cell:opening?(u===0?cell0:u===1?side/2:Math.exp(Math.log(cell0)*(1-u)+Math.log(side/2)*u)):side/scene.cells,
+    ox:opening?(original.cx-cell0/2)*(1-u)+x*u:x,
+    oy:opening?(original.cy-cell0/2)*(1-u)+y*u:y,u};
+}
 
 export class StoryGridView {
   /** @param {HTMLCanvasElement} canvas */
@@ -17,20 +29,15 @@ export class StoryGridView {
   }
   /** @param {Float32Array} states @param {{l1:number,l2:number,m1:number,m2:number}} p
    * @param {ReturnType<typeof import('../story/grid-story.js').storyFrame>} scene
-   * @param {number} seconds @param {number[][]} trail */
-  draw(states,p,scene,seconds,trail=[]) {
+   * @param {number} seconds @param {number[][]} trail @param {Float32Array|null} resetFrom */
+  draw(states,p,scene,seconds,trail=[],resetFrom=null) {
     const c=this.canvas,ctx=this.ctx,w=c.clientWidth,h=c.clientHeight,dpr=Math.min(devicePixelRatio,2);
     if(!ctx)return;
     if(c.width!==Math.round(w*dpr)||c.height!==Math.round(h*dpr)){c.width=Math.round(w*dpr);c.height=Math.round(h*dpr);}
     ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
-    const side=Math.max(1,Math.min(w-48,h-310)),x=(w-side)/2,y=145+(h-310-side)/2;
-    const original=SingleView.geometry(w,h,p),cell0=original.scale*(p.l1+p.l2)/.37;
-    const n=scene.size,u=scene.opening,opening=scene.stage===0&&seconds<12;
-    const cell=opening?Math.exp(Math.log(cell0)*(1-u)+Math.log(side/2.5)*u):side/scene.cells;
-    const targetX=x+(side-cell*n)/2,targetY=y+(side-cell*n)/2;
-    const ox=opening?(original.cx-cell0/2)*(1-u)+targetX*u:targetX;
-    const oy=opening?(original.cy-cell0/2)*(1-u)+targetY*u:targetY;
-    const scale=cell*.37/(p.l1+p.l2),reveal=ease((seconds-4)/5),rodAlpha=(1-ease((9-cell)/7))*ease((24-scene.cells)/4);
+    const {cell,ox,oy,u}=storyGeometry(w,h,p,scene),n=scene.size;
+    states=resetPoses(states,resetFrom,scene.resetBlend);
+    const scale=cell*.37/(p.l1+p.l2),rodAlpha=(1-ease((9-cell)/7))*ease((24-scene.cells)/4);
     const clipTop=120*u,clipBottom=h-145*u;
     ctx.save();ctx.beginPath();ctx.rect(0,clipTop,w,clipBottom-clipTop);ctx.clip();
     // Always blit colours as one ImageData — per-cell fillRect at 40×40 stalled Chrome (~7fps) via GPU contention.
@@ -38,10 +45,10 @@ export class StoryGridView {
       const field=/** @type {HTMLCanvasElement} */(this.field),fieldCtx=/** @type {CanvasRenderingContext2D} */(this.fieldCtx);
       if(field.width!==n||field.height!==n){field.width=n;field.height=n;this.image=null;}
       if(!this.image)this.image=fieldCtx.createImageData(n,n);
-      const colour=scene.colour,fade=scene.resetFade;
+      const colour=scene.colour;
       writeAnglePixels(this.image.data,states,n*n,i=>{
         const row=Math.floor(i/n),col=i%n;
-        return (row===0&&col===0?1:reveal)*fade*colour;
+        return storyCellOpacity(scene,row,col)*colour;
       });
       fieldCtx.putImageData(this.image,0,0);
       ctx.imageSmoothingEnabled=false;ctx.globalAlpha=1;ctx.drawImage(field,ox,oy,cell*n,cell*n);ctx.imageSmoothingEnabled=true;
@@ -54,13 +61,13 @@ export class StoryGridView {
     const minRow=Math.max(0,Math.floor((clipTop-oy)/cell)),maxRow=Math.min(n,Math.ceil((clipBottom-oy)/cell));
     for(let row=minRow;row<maxRow;row++)for(let col=minCol;col<maxCol;col++) {
       const i=(row*n+col)*4,px=ox+col*cell,py=oy+row*cell,cx=px+cell/2,cy=py+cell/2;
-      const alpha=(row===0&&col===0?1:reveal)*scene.resetFade;
-      if(drawBorders){ctx.globalAlpha=alpha*reveal*(1-scene.colour*.75)*ease((cell-4)/8);ctx.strokeStyle='#524634';ctx.lineWidth=1;ctx.strokeRect(px,py,cell,cell);}
+      const alpha=storyCellOpacity(scene,row,col);
+      if(drawBorders){ctx.globalAlpha=alpha*(1-scene.colour*.75)*ease((cell-4)/8);ctx.strokeStyle='#524634';ctx.lineWidth=1;ctx.strokeRect(px,py,cell,cell);}
       if(!drawRods)continue;
       const ax=cx+Math.sin(states[i])*p.l1*scale,ay=cy+Math.cos(states[i])*p.l1*scale;
       const bx=ax+Math.sin(states[i+1])*p.l2*scale,by=ay+Math.cos(states[i+1])*p.l2*scale;
       if(row===0&&col===0&&seconds<13) {
-        ctx.globalAlpha=alpha*(1-u)*.28;ctx.strokeStyle='#f2a544';ctx.lineWidth=1.5;ctx.beginPath();
+        ctx.globalAlpha=alpha*(1-u)*(scene.reset?1-scene.resetBlend:1)*.28;ctx.strokeStyle='#f2a544';ctx.lineWidth=1.5;ctx.beginPath();
         trail.forEach(([tx,ty],j)=>{if(j===0)ctx.moveTo(cx+tx*scale,cy+ty*scale);else ctx.lineTo(cx+tx*scale,cy+ty*scale);});ctx.stroke();
         ctx.globalAlpha=alpha*(1-u);ctx.strokeStyle='#393329';ctx.lineWidth=1;
         for(let r=1;r<=3;r++){ctx.beginPath();ctx.arc(cx,cy,r*scale*.65,0,Math.PI*2);ctx.stroke();}

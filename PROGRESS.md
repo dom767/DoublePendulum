@@ -67,7 +67,19 @@ Milestone 2 verification: `npm test` passes all 15 tests, including packaging; `
 
 ## Guided single-to-grid story
 
-The original 100-second nested-field implementation below is historical. The revised flow immediately below supersedes it.
+### Continuous expansion revision — 2026-11-25
+
+- [x] Existing cells keep full opacity, poses and camera geometry across expansion boundaries; only new rows/columns fade in.
+- [x] Reset poses ease visibly over two seconds along the shortest angular path; no whole-scene fade or blank frame.
+- [x] Four-second new-cell reveal, then reset, then one direct eased pullback to the final framing. Removed wide framing and reverse zoom.
+- [x] Resets at 9/51/95/132 s; pullbacks at 12–20/54–64/98–108/135–147 s. Runs still begin at 25/74/112/151 s; total story remains 165 s.
+- [x] Colour field opacity and reset colours follow the same retained/new-cell rules as rods. FPS harness reflects retained poses and reset interpolation.
+- [x] Regression checks cover boundary geometry, opacity, monotonic camera scale, shortest-path resets and retained GPU poses/velocities.
+- [ ] Actual browser smoothness/visual acceptance remains outstanding.
+
+Verification: all 28 Node tests pass, including packaging and staged GPU/UI orchestration with stubs; TypeScript, source syntax and whitespace checks pass. No server or deployment was started for this revision. Browser visual review remains pending.
+
+The previous flows below are historical and superseded by the continuous expansion revision above.
 
 ### Revised flow — 2026-11-25
 

@@ -126,6 +126,10 @@ test('guided story bounds each grid, resets every stage, runs, replays and exits
   await to(27);assert.ok(calls.length>held);
   await to(65);
   assert.deepEqual(calls.filter(c=>c.kind==='grid').map(c=>c.state.length/4),[4,4,100,100]);
+  const expanded=calls.filter(c=>c.kind==='grid')[2].state;
+  for(let row=0;row<2;row++)for(let col=0;col<2;col++) {
+    assert.deepEqual(expanded.slice((row*10+col)*4,(row*10+col)*4+4),nearby.slice((row*2+col)*4,(row*2+col)*4+4),'Existing poses and angular velocities survive expansion');
+  }
   const full=calls.filter(c=>c.kind==='grid').at(-1).state;
   assert.equal(full[0],Math.fround(-Math.PI));assert.equal(full[1],Math.fround(Math.PI));
   assert.equal(full[396],Math.fround(Math.PI));assert.equal(full[397],Math.fround(-Math.PI));

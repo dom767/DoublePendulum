@@ -38,7 +38,8 @@ try {
   gpu.resetStates(states);
   states=await gpu.advance(32,p);
   let storyElapsed=114; // running 40×40, followed by the staged 160×160 experiment
-  let activeStage=2,resetApplied=true;
+  let activeStage=2,activeSize=40,resetApplied=true;
+  /** @type {Float32Array|null} */ let resetFrom=null;
   let time=32*DT, steps=32, accumulator=0, last=0, busy=false, lastGpu=0;
   let frames=0, started=performance.now();
   let dwell40Until=0, phase='dwell40';
@@ -46,16 +47,21 @@ try {
 
   function paint(scene) {
     const t0=performance.now();
-    view.draw(states,p,scene,storyElapsed,[]);
+    view.draw(states,p,scene,storyElapsed,[],resetFrom);
     return performance.now()-t0;
   }
 
   async function advance(scene) {
     if(scene.stage!==activeStage) {
+      const previous=states;
       states=storyEnsemble(scene.size,1.9198621771937625,1.7453292519943295).initial.slice();
-      gpu.resetStates(states);activeStage=scene.stage;resetApplied=false;accumulator=0;time=0;steps=0;
+      for(let row=0;row<activeSize;row++)for(let col=0;col<activeSize;col++) {
+        const old=(row*activeSize+col)*4;states.set(previous.subarray(old,old+4),(row*scene.size+col)*4);
+      }
+      gpu.resetStates(states);activeStage=scene.stage;activeSize=scene.size;resetApplied=false;resetFrom=null;accumulator=0;time=0;steps=0;
     }
     if(scene.reset&&!resetApplied){
+      resetFrom=states.slice();
       states=storyEnsemble(scene.size,1.9198621771937625,1.7453292519943295).initial.slice();
       gpu.resetStates(states);resetApplied=true;accumulator=0;time=0;steps=0;
     }

@@ -82,13 +82,13 @@ element('leave-story').addEventListener('click',()=>{exploreRequested=true;});
 function beginStory() {
   const field=storyEnsemble(2,singleInitial[0],singleInitial[1]);
   const seed=field.initial.slice();seed.set(states.slice(0,4));
-  story={elapsed:0,stage:0,reset:false,seed,field,trail:view.paths[0].map(point=>point.slice()),initialTime:time,initialSteps:steps};
+  story={elapsed:0,stage:0,reset:false,resetFrom:null,seed,field,trail:view.paths[0].map(point=>point.slice()),initialTime:time,initialSteps:steps};
   ensemble=field;states=seed.slice();backend.resetStates(seed);mode='story';storyRequested=false;
   accumulator=0;stepPending=false;syncMode();
 }
 function paintStory() {
   const scene=storyFrame(story.elapsed,reducedMotion);
-  storyView.draw(states,p,scene,story.elapsed,story.trail);
+  storyView.draw(states,p,scene,story.elapsed,story.trail,story.resetFrom);
   element('story-chapter').textContent=`${scene.chapter.number} / From one to many`;
   element('story-title').textContent=scene.chapter.title;element('story-caption').textContent=scene.chapter.text;
   element('story-copy').style.opacity=String(scene.opacity);
@@ -98,7 +98,7 @@ function paintStory() {
 }
 async function advanceStory() {
   if(replayRequested){
-    ensemble=story.field;backend.resetStates(story.seed);states=story.seed.slice();story.elapsed=0;story.stage=0;story.reset=false;time=story.initialTime;steps=story.initialSteps;
+    ensemble=story.field;backend.resetStates(story.seed);states=story.seed.slice();story.elapsed=0;story.stage=0;story.reset=false;story.resetFrom=null;time=story.initialTime;steps=story.initialSteps;
     accumulator=0;replayRequested=false;setPaused(reducedMotion);
   }
   if(exploreRequested){
@@ -118,9 +118,9 @@ async function advanceStory() {
       const old=(row*previous.size+col)*4,next=(row*ensemble.size+col)*4;
       states.set(oldStates.subarray(old,old+4),next);
     }
-    backend.resetStates(states);story.stage=scene.stage;story.reset=false;accumulator=0;time=0;steps=0;
+    backend.resetStates(states);story.stage=scene.stage;story.reset=false;story.resetFrom=null;accumulator=0;time=0;steps=0;
   }
-  if(scene.reset&&!story.reset){backend.resetStates(ensemble.initial);states=ensemble.initial.slice();time=0;steps=0;story.reset=true;accumulator=0;}
+  if(scene.reset&&!story.reset){story.resetFrom=states.slice();backend.resetStates(ensemble.initial);states=ensemble.initial.slice();time=0;steps=0;story.reset=true;accumulator=0;}
   if(!scene.running)accumulator=0;
   const count=paused||!scene.running?0:Math.min(32,Math.floor(accumulator/DT));
   accumulator-=count*DT;

@@ -11,7 +11,7 @@
 
 Milestones 1 and 2 are implemented; outstanding browser acceptance is tracked in PROGRESS.md. Later milestones remain separate phases. The user's WebGPU decision supersedes the earlier CPU-first/fallback proposal.
 
-Follow-up build, revised flow: a 165-second guided story preserves the original at the top-left of only four pendulums, pauses and frames them closer, resets them to nearly identical angles, then runs to demonstrate sensitivity. Separate bounded 10×10, 40×40 and 160×160 stages each reveal, pause, frame closer, reset across −180° to +180° on both axes, and run again. Angle colours fade in after the 10×10 reset. This supersedes the earlier continuously nested 100-second reveal. It brings forward parts of milestones 3 and 5 without completing pixel-resolution sampling, maps or the eventual two-minute edit. Pacing and controls are documented in README.md.
+Follow-up build, current flow: a 165-second guided story preserves the original at the top-left of only four pendulums, fades in new cells, resets them to nearly identical angles, zooms directly out and runs to demonstrate sensitivity. Separate bounded 10×10, 40×40 and 160×160 stages each preserve existing poses, opacity and camera framing, fade only new cells in, ease a full-domain reset without hiding the scene, zoom straight out to the final scale, then run again. There is no overshoot/zoom-in phase. Angle colours fade in after the 10×10 reset. This supersedes the earlier fade-out and closer-framing flow. It brings forward parts of milestones 3 and 5 without completing pixel-resolution sampling, maps or the eventual two-minute edit. Pacing and controls are documented in README.md.
 
 ## 1. Physics and single-pendulum view
 
