@@ -27,8 +27,11 @@ async function boot(supported=false) {
     resetStates(initial){state=initial.slice();calls.push({kind:'grid',state:state.slice()});},
     async advance(count,p){calls.push({kind:'advance',count,p});return state.slice();},
     async advanceVarying(count,paramsAt){return this.advance(count,paramsAt(0));}};
-  const context=vm.createContext({console,Float32Array,Math,Number,Error,String,devicePixelRatio:1,navigator:{},
-    document:{getElementById:id=>{assert.ok(nodes.has(id),`HTML declares #${id}`);return nodes.get(id);},body:{classList:{toggle(){}}},addEventListener(){}},
+  const context=vm.createContext({console,Float32Array,Uint8ClampedArray,Math,Number,Error,String,devicePixelRatio:1,navigator:{},
+    ImageData:class ImageData{constructor(data,width,height){this.data=data;this.width=width;this.height=height??data.length/width/4;}},
+    document:{getElementById:id=>{assert.ok(nodes.has(id),`HTML declares #${id}`);return nodes.get(id);},
+      createElement:()=>({width:0,height:0,getContext:()=>new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4),width:w,height:h})},{get:(t,prop)=>prop in t?t[prop]:()=>{}})}),
+      body:{classList:{toggle(){}}},addEventListener(){}},
     getComputedStyle:()=>({getPropertyValue:()=> 'monospace'}),
     matchMedia:()=>({matches:false,addEventListener(){}}),requestAnimationFrame:fn=>frames.push(fn)});
   const cache=new Map();
@@ -72,9 +75,10 @@ test('grid mode resets the GPU ensemble, steps it, inspects a cell and replays i
   assert.equal(nodes.get('inspector').open,false);assert.equal(nodes.get('opening').value,'fixed');
   const resets=calls.filter(c=>c.kind==='reset'),replay=resets.at(-1).state;
   assert.equal(replay[0],initial[0]);assert.equal(replay[1],initial[1]);
-  assert.equal(calls.at(-1).p.l1,1);
+  nodes.get('step').listeners.click();await tick(164);
+  assert.equal(calls.filter(c=>c.kind==='advance').at(-1).p.l1,1);
   assert.equal(nodes.get('single-controls').classList.contains('hidden'),false);
-  assert.match(nodes.get('view-status').textContent,/0 steps/);
+  assert.match(nodes.get('view-status').textContent,/1 steps/);
 });
 
 test('guided story preserves the source, pauses, resets once before colours, restarts and exits',async()=>{

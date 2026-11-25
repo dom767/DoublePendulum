@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createEnsemble, cellInitial, presets, DEG } from '../src/physics/ensemble.js';
-import { angleRGB } from '../src/render/angle-colour.js';
+import { angleRGB, writeAnglePixels } from '../src/render/angle-colour.js';
 import { GridView } from '../src/views/grid.js';
 
 test('grid uses cell centres with primary rightward and secondary upward',()=>{
@@ -35,6 +35,16 @@ test('colour map is periodic on both angles and continuous across wrapping',()=>
     const bottom=angleRGB(b,-Math.PI+1e-7),top=angleRGB(b,Math.PI-1e-7);
     assert.ok(bottom.every((v,i)=>Math.abs(v-top[i])<=1));
   }
+});
+test('angle pixel packing matches per-cell colours and respects alpha',()=>{
+  const angles=new Float32Array([.4,-1.2,0,0,2.1,.3,0,0]);
+  const pixels=new Uint8ClampedArray(8);
+  writeAnglePixels(pixels,angles,2,i=>i===0?1:.25);
+  const [r,g,b]=angleRGB(.4,-1.2);
+  assert.deepEqual([...pixels.slice(0,4)],[r,g,b,255]);
+  const second=angleRGB(2.1,.3);
+  assert.deepEqual([...pixels.slice(4)],[second[0],second[1],second[2],64]);
+  assert.throws(()=>writeAnglePixels(new Uint8ClampedArray(4),angles,2));
 });
 test('grid hit testing selects row-major cells and rejects axes and outer boundary',()=>{
   const grid=new GridView(/** @type {HTMLCanvasElement} */(/** @type {unknown} */({getContext:()=>null})));

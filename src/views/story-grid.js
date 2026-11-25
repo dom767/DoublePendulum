@@ -1,10 +1,20 @@
 import { SingleView } from './single.js';
 import { ease } from '../story/grid-story.js';
-import { angleColour } from '../render/angle-colour.js';
+import { angleColour, writeAnglePixels } from '../render/angle-colour.js';
 
 export class StoryGridView {
   /** @param {HTMLCanvasElement} canvas */
-  constructor(canvas) {this.canvas=canvas;this.ctx=canvas.getContext('2d');}
+  constructor(canvas) {
+    this.canvas=canvas;this.ctx=canvas.getContext('2d');
+    /** @type {HTMLCanvasElement|null} */ this.field=null;
+    /** @type {CanvasRenderingContext2D|null} */ this.fieldCtx=null;
+    /** @type {ImageData|null} */ this.image=null;
+  }
+  ensureField() {
+    if(this.field&&this.fieldCtx)return true;
+    this.field=document.createElement('canvas');this.fieldCtx=this.field.getContext('2d');
+    return !!this.fieldCtx;
+  }
   /** @param {Float32Array} states @param {{l1:number,l2:number,m1:number,m2:number}} p
    * @param {ReturnType<typeof import('../story/grid-story.js').storyFrame>} scene
    * @param {number} seconds @param {number[][]} trail */
@@ -20,17 +30,29 @@ export class StoryGridView {
     const ox=scene.cells<2?(original.cx-cell0/2)*(1-u)+x*u:x;
     const oy=scene.cells<2?(original.cy-cell0/2)*(1-u)+y*u:y;
     const scale=cell*.37/(p.l1+p.l2),reveal=ease((seconds-5)/5),rodAlpha=1-ease((9-cell)/7);
-    // Screen-space culling bounds work at every camera scale; no bitmap magnification.
-    const minCol=Math.max(0,Math.floor(-ox/cell)),maxCol=Math.min(160,Math.ceil((w-ox)/cell));
     const clipTop=120*u,clipBottom=h-145*u;
-    const minRow=Math.max(0,Math.floor((clipTop-oy)/cell)),maxRow=Math.min(160,Math.ceil((clipBottom-oy)/cell));
     ctx.save();ctx.beginPath();ctx.rect(0,clipTop,w,clipBottom-clipTop);ctx.clip();
+    // Dense colour fields use one scaled blit; sparse zooms keep per-cell fills with culling.
+    if(scene.colour>0&&cell<=5&&this.ensureField()) {
+      const field=/** @type {HTMLCanvasElement} */(this.field),fieldCtx=/** @type {CanvasRenderingContext2D} */(this.fieldCtx);
+      if(field.width!==160||field.height!==160){field.width=160;field.height=160;this.image=null;}
+      if(!this.image)this.image=fieldCtx.createImageData(160,160);
+      writeAnglePixels(this.image.data,states,25600,i=>{
+        const row=Math.floor(i/160),col=i%160;
+        return (row===0&&col===0?1:reveal)*scene.resetFade*scene.colour;
+      });
+      fieldCtx.putImageData(this.image,0,0);
+      ctx.imageSmoothingEnabled=false;ctx.globalAlpha=1;ctx.drawImage(field,ox,oy,cell*160,cell*160);ctx.imageSmoothingEnabled=true;
+    }
+    const minCol=Math.max(0,Math.floor(-ox/cell)),maxCol=Math.min(160,Math.ceil((w-ox)/cell));
+    const minRow=Math.max(0,Math.floor((clipTop-oy)/cell)),maxRow=Math.min(160,Math.ceil((clipBottom-oy)/cell));
     for(let row=minRow;row<maxRow;row++)for(let col=minCol;col<maxCol;col++) {
       const i=(row*160+col)*4,px=ox+col*cell,py=oy+row*cell,cx=px+cell/2,cy=py+cell/2;
       const alpha=(row===0&&col===0?1:reveal)*scene.resetFade;
-      if(scene.colour>0){ctx.globalAlpha=alpha*scene.colour;ctx.fillStyle=angleColour(states[i],states[i+1]);ctx.fillRect(px,py,cell+.3,cell+.3);}
-      if(cell>4){ctx.globalAlpha=alpha*reveal*(1-scene.colour*.75)*ease((cell-4)/8);ctx.strokeStyle='#524634';ctx.lineWidth=1;ctx.strokeRect(px,py,cell,cell);}
-      if(rodAlpha<=0)continue;
+      if(scene.colour>0&&cell>5){ctx.globalAlpha=alpha*scene.colour;ctx.fillStyle=angleColour(states[i],states[i+1]);ctx.fillRect(px,py,cell+.3,cell+.3);}
+      if(cell>5){ctx.globalAlpha=alpha*reveal*(1-scene.colour*.75)*ease((cell-4)/8);ctx.strokeStyle='#524634';ctx.lineWidth=1;ctx.strokeRect(px,py,cell,cell);}
+      // Below ~4px the arms are invisible; skip the stroke storm that made 160×160 crawl.
+      if(rodAlpha<=.02||cell<4)continue;
       const ax=cx+Math.sin(states[i])*p.l1*scale,ay=cy+Math.cos(states[i])*p.l1*scale;
       const bx=ax+Math.sin(states[i+1])*p.l2*scale,by=ay+Math.cos(states[i+1])*p.l2*scale;
       if(row===0&&col===0&&seconds<13) {

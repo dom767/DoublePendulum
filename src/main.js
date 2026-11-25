@@ -177,7 +177,8 @@ async function frame(now) {
         const config=pendingConfig;
         p=config.p;grow=config.grow;mode=config.mode;ensemble=config.ensemble;
         singleInitial=[config.a,config.b];
-        if(mode==='grid')backend.resetStates(ensemble.initial);else backend.reset(config.a,config.b);
+        if(mode==='grid'){backend.resetStates(ensemble.initial);states=ensemble.initial.slice();}
+        else {backend.reset(config.a,config.b);states=new Float32Array([config.a,config.b,0,0,config.a+.0001,config.b,0,0]);}
         select(0);syncMode();
         resetPending=false;time=0;steps=0;accumulator=0;view.clear();
       }
@@ -186,11 +187,14 @@ async function frame(now) {
       const count=stepPending?1:paused?0:Math.min(32,Math.floor(accumulator/DT));
       if(stepPending) stepPending=false;else if(!paused) accumulator-=count*DT;
       // Growth uses a deterministic length per fixed step; one GPU readback per frame (not per step).
-      if(mode==='single' && grow && time<GROW_DURATION && p.l2>0) {
-        const start=time;
-        states=await backend.advanceVarying(count,i=>({...p,l2:growthLength(start+i*DT,p.l2)}));
+      // Skip submit/readback when there is no work — dense grids pay heavily for mapAsync.
+      if(count>0) {
+        if(mode==='single' && grow && time<GROW_DURATION && p.l2>0) {
+          const start=time;
+          states=await backend.advanceVarying(count,i=>({...p,l2:growthLength(start+i*DT,p.l2)}));
+        } else { states=await backend.advance(count,p); }
         time+=count*DT;steps+=count;
-      } else { states=await backend.advance(count,p);time+=count*DT;steps+=count; }
+      }
       if(resetPending)return;
       if(mode==='grid') {
         grid.draw(states,ensemble,p,selected,input('colour-source').value==='initial',!element('settings').classList.contains('hidden'));
