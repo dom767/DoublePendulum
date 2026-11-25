@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>pending</title>
+<body><pre id="out">Running story transition timings…</pre>
+<canvas id="view" style="width:1280px;height:800px;position:fixed;left:-9999px"></canvas>
+<script type="module">
+import { GPUBackend } from '../src/compute/gpu-backend.js';
+import { storyFrame, storyEnsemble } from '../src/story/grid-story.js';
+import { StoryGridView } from '../src/views/story-grid.js';
+
+const out=document.getElementById('out');
+const canvas=document.getElementById('view');
+Object.defineProperty(canvas,'clientWidth',{get:()=>1280});
+Object.defineProperty(canvas,'clientHeight',{get:()=>800});
+const mid=a=>{const s=a.slice().sort((x,y)=>x-y);return s[Math.floor(s.length/2)];};
+const p={l1:1,l2:1,m1:1,m2:1};
+
+// Representative beats along the guided transition (after colours exist where relevant).
+const samples=[
+  {t:3,label:'01 hold single'},
+  {t:9,label:'02 zoom→2×2'},
+  {t:15,label:'02 hold 2×2'},
+  {t:23,label:'02 zoom→10×10'},
+  {t:32,label:'02 hold 10×10'},
+  {t:40,label:'03 colour fade-in'},
+  {t:46,label:'03 colour hold'},
+  {t:55,label:'04 running 10×10'},
+  {t:66,label:'05 zoom→40×40'},
+  {t:74,label:'05 hold 40×40'},
+  {t:85,label:'06 zoom→160×160'},
+  {t:96,label:'06 hold 160×160'}
+];
+
+try {
+  const gpu=await GPUBackend.create();
+  const field=storyEnsemble(1.9,1.7);
+  gpu.resetStates(field.initial);
+  let states=await gpu.advance(32,p);
+  const view=new StoryGridView(canvas);
+  const rows=['Story transition (1280×800 CSS). Median of 12 draws + separate gpuAdvance32.',
+    'draw = StoryGridView only; frame≈draw+gpu when physics is running.',
+    ''];
+  const summary=[];
+  for(const sample of samples){
+    const scene=storyFrame(sample.t,false);
+    // Warm + measure draw
+    for(let i=0;i<3;i++)view.draw(states,p,scene,sample.t,[]);
+    const draws=[];
+    for(let i=0;i<12;i++){
+      const t0=performance.now();
+      view.draw(states,p,scene,sample.t,[]);
+      draws.push(performance.now()-t0);
+    }
+    let gpuMs=0;
+    if(scene.running){
+      const gs=[];
+      for(let i=0;i<8;i++){
+        const t0=performance.now();
+        states=await gpu.advance(32,p);
+        gs.push(performance.now()-t0);
+      }
+      gpuMs=mid(gs);
+    }
+    const drawMs=mid(draws);
+    const frameMs=drawMs+(scene.running?gpuMs:0);
+    const fps=1000/Math.max(frameMs,0.01);
+    const cell=scene.cells;
+    const line=`t=${String(sample.t).padStart(2)}s ${sample.label.padEnd(18)} cells~${cell.toFixed?.(1)??cell} colour=${scene.colour.toFixed(2)} run=${scene.running?'Y':'N'} | draw ${drawMs.toFixed(1)}ms gpu32 ${gpuMs.toFixed(1)}ms | ≈${frameMs.toFixed(1)}ms (${fps.toFixed(0)} fps)`;
+    rows.push(line);
+    summary.push(`t${sample.t}:${fps.toFixed(0)}fps`);
+  }
+  out.textContent=rows.join('\n');
+  document.title='DONE '+summary.join(' ');
+} catch(e) {
+  out.textContent=String(e?.stack||e);
+  document.title='FAIL '+e;
+}
+</script>
+</body></html>
