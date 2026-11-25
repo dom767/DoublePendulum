@@ -16,7 +16,9 @@ Angles are absolute, measured from the downward vertical, positive toward the ri
 
 The live simulator always integrates on WebGPU using float32 RK4 at Δt = 1/480 s. Canvas 2D draws the GPU states. The independent JavaScript double-precision reference runs only in numerical verification. Simulation time counts integration steps, independently of frame rate. Work is bounded per frame, but pending steps are retained and reported as catching up; hidden tabs suspend playback. Trails are display samples, not a full numerical history.
 
-The default opening grows the second arm from zero to the configured length in eight simulation seconds. At exactly zero, an explicit simple-pendulum equation avoids division by zero. During growth, the fixed-length equations use the instantaneous length with a 5 cm numerical floor. **This is an illustrative changing system, not the dynamics of a physical telescoping rod.** Energy conservation applies only to fixed-length runs. Choose “Fixed lengths” for physical experiments; a second length of zero gives the simple-pendulum branch. Growth is deterministic per integration step.
+The pendulum's pivot stays at the centre of the viewport on desktop and phone. Settings starts hidden; use the bottom **Settings** button to open it. Resizing preserves the panel's open/closed state rather than opening it automatically.
+
+The default opening begins with ten simulation seconds of an exact single-arm pendulum. Its introduction describes a regular, repeating rhythm under the same frictionless conditions. The second arm then grows from zero to the configured length over eight more simulation seconds, completing the opening at t = 18 s. Playback speed affects these simulation-time durations, and pausing freezes them. At exactly zero, an explicit simple-pendulum equation avoids division by zero; only one bob is drawn. During growth, the fixed-length equations use the instantaneous length with a 5 cm numerical floor. **This is an illustrative changing system, not the dynamics of a physical telescoping rod.** Energy conservation applies only to fixed-length runs. Choose “Fixed lengths” to skip the introduction and growth for direct physical experiments; a second length of zero gives the simple-pendulum branch. Growth is deterministic per integration step.
 
 Settings apply to this tab only and are not persisted. Angles, lengths, masses and opening mode apply with **Apply and restart**. Speed, trails and comparison apply immediately. Home restarts with the currently entered valid parameters. Restore defaults resets all settings; reloading also restores defaults. Reduced-motion users start paused. The nearby trajectory changes only the primary initial angle by +0.0001 rad; sensitivity is not a claim that every trajectory is chaotic.
 
@@ -40,7 +42,7 @@ The browser checks also run a 6×6 ensemble for 480 steps, compare every cell bi
 
 ## Guided transition — one to 25,600
 
-From the single view, click **Grid**, or use **Play grid story** in Settings. The opening arm finishes growing first if necessary. A 165-second guided sequence follows the original pendulum into four separate experiments. Only the active grid exists and is drawn; there is no larger field peeking into the small-grid chapters.
+From the single view, click **Grid**, or use **Play grid story** in Settings. The ten-second introduction and eight-second arm growth finish first if necessary. A 165-second guided sequence follows the original pendulum into four separate experiments. Only the active grid exists and is drawn; there is no larger field peeking into the small-grid chapters.
 
 | Story seconds | Visual |
 |---|---|

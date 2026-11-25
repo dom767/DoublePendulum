@@ -14,9 +14,9 @@
 <body>
 <main id="app">
   <canvas id="view" aria-label="Animated double pendulum, angles measured from downward vertical"></canvas>
-  <div class="heading"><span class="eyebrow">01 / An experiment in motion</span><h1>Simple rules.<br>Complex motion.</h1></div>
+  <div class="heading"><span class="eyebrow">01 / An experiment in motion</span><h1 id="opening-title">The rhythm of<br>a single pendulum.</h1></div>
   <div id="nav-scrim" class="hidden"></div>
-  <aside id="settings" aria-label="Simulation settings">
+  <aside id="settings" class="hidden" aria-label="Simulation settings">
     <h2>The experiment</h2>
     <p>Session settings · changes restart the experiment. Reload restores defaults.</p>
     <form id="parameters">
@@ -33,7 +33,7 @@
       </div>
       <div class="pair"><label>Length 1 (m)<input id="length1" type="number" min="0.2" max="3" step="0.1" value="1" required></label><label>Length 2 (m)<input id="length2" type="number" min="0" max="3" step="0.1" value="1" required></label></div>
       <div class="pair"><label>Mass 1 (kg)<input id="mass1" type="number" min="0.2" max="5" step="0.1" value="1" required></label><label>Mass 2 (kg)<input id="mass2" type="number" min="0.2" max="5" step="0.1" value="1" required></label></div>
-      <div id="opening-controls"><label>Opening scene<select id="opening"><option value="grow">Grow the second arm · 8 s</option><option value="fixed">Fixed lengths · energy conserving</option></select></label>
+      <div id="opening-controls"><label>Opening scene<select id="opening"><option value="grow">Single arm · 10 s, then grow · 8 s</option><option value="fixed">Fixed lengths · energy conserving</option></select></label>
       <p class="hint">Growth is a changing-length illustration using instantaneous fixed-length equations, not a model of a telescoping rod. The first 5 cm are regularised.</p></div>
       <button type="submit" class="primary">Apply and restart</button>
       <button type="button" id="defaults">Restore defaults</button>
@@ -57,7 +57,7 @@
     <p>No friction. Zero initial velocities. Gravity 9.81 m/s². All integration runs on WebGPU.</p>
   </aside>
   <div id="view-status" role="status">Initialising WebGPU…</div>
-  <div class="caption"><span id="phase">From one arm to two</span><p id="explanation">A second degree of freedom opens up a much richer range of motion.</p></div>
+  <div class="caption"><span id="phase">A predictable rhythm</span><p id="explanation">Back and forth, a single pendulum repeats its swing. With no friction, the same starting conditions give the same steady rhythm.</p></div>
   <section id="story-overlay" class="hidden" aria-label="Guided pendulum chapters">
     <div id="story-copy"><span id="story-chapter" class="eyebrow"></span><h2 id="story-title"></h2><p id="story-caption"></p></div>
     <div class="story-footer"><span id="story-progress"></span><button id="replay-story">Replay</button><button id="leave-story">Explore grid</button></div>

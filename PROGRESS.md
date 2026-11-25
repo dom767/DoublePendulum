@@ -12,10 +12,10 @@
 
 - [x] Plain HTML/CSS/ES modules, no development build step, Node static server and Windows launcher.
 - [x] WebGPU-only live physics, float32 RK4, explicit zero-length simple-pendulum branch.
-- [x] Eight-second growing-arm opening, documented as a changing-length illustration with a 5 cm regularisation.
+- [x] Ten-second single-arm introduction, then eight-second growing-arm opening, documented as a changing-length illustration with a 5 cm regularisation.
 - [x] Pause, restart, single-step, speed, trails, initial angles, nearby trajectory and unequal mass/length controls.
 - [x] Fixed integration timestep and accumulated pending work; tab visibility suspends playback.
-- [x] Desktop floating settings, phone sheet, keyboard focus, fullscreen control and reduced-motion paused start.
+- [x] Centred pendulum pivot, initially hidden desktop/phone settings, keyboard focus, fullscreen control and reduced-motion paused start.
 - [x] Independent double-precision reference; equilibrium, symmetry, reproducibility, zero-length, 120 s energy and timestep-refinement tests.
 - [x] Browser verification page covering real GPU compilation, agreement, replay, equilibrium, zero length, energy and growth.
 - [ ] Actual WebGPU numerical/browser tests and visual checks at 360px, 768px, landscape and portrait.
@@ -35,6 +35,18 @@ Launching Chrome for automated browser verification was blocked by the execution
 - Session settings deliberately do not persist; shareable state/bookmarks arrive in milestone 4.
 - No per-display-pixel sampling, fixed-duration map or direct video export yet. A partial guided timeline now covers the single-to-dense-grid transition.
 - Deployment scripts (Run Local / Deploy Local / Deploy Prod) package to `Export/` and target `https://baffledcat.com/pendulum/`; first production upload is still a human Deploy Prod step. Packaged HTML loads `/consent.js`; a Cookie settings footer link is not in the UI yet. Packaging smoke: `packageBuild` + `npm test` (8 pass) + served `Export/Local` on 7101 with versioned bundles.
+
+## Milestone 1 opening revision — 2026-11-25
+
+- [x] Pivot fixed at viewport centre for desktop and phone; story camera shares that geometry.
+- [x] Settings hidden in initial HTML and at startup, with toggle access and open-state preservation on resize.
+- [x] First ten simulation seconds use an exactly zero second-arm length on the GPU, render one bob, and explain predictable single-pendulum rhythms.
+- [x] Second arm then grows for eight seconds; captions/title change with the opening stage. Fixed-length mode remains a direct skip.
+- [x] A queued grid story waits until the introduction and growth finish. GPU browser verification includes the ten-second single-arm run before growth.
+- [x] Automated coverage for opening boundaries, GPU parameters, centred geometry and hidden desktop/phone settings.
+- [ ] Actual browser visual/GPU acceptance remains outstanding.
+
+Opening-revision verification: all 26 Node tests pass, including packaging and UI flow; `npm run check`, source syntax checks and `git diff --check` pass. No development server or deployment was started for this revision.
 
 ## Milestone 2 implementation
 

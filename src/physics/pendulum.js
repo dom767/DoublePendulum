@@ -1,7 +1,10 @@
 /** Angles in radians from downward vertical; velocities in rad/s. */
 export const DT = 1 / 480;
-/** Opening scene duration in simulation seconds. */
+/** Second-arm growth duration in simulation seconds, following the introduction. */
 export const GROW_DURATION = 8;
+/** The default opening holds a true one-arm pendulum before adding its second arm. */
+export const INTRO_DURATION = 10;
+export const OPENING_DURATION = INTRO_DURATION + GROW_DURATION;
 /** Numerical floor (m) while the second arm is growing; exact zero uses the simple-pendulum branch. */
 export const GROW_FLOOR = 0.05;
 /** @type {{l1:number,l2:number,m1:number,m2:number,g:number}} */
@@ -12,6 +15,18 @@ export const defaults = Object.freeze({ l1: 1, l2: 1, m1: 1, m2: 1, g: 9.81 });
 export function growthLength(time, target, duration = GROW_DURATION) {
   if (time === 0 || target === 0) return 0;
   return Math.max(GROW_FLOOR, target * Math.min(1, time / duration));
+}
+
+/** Physical length used by the GPU at each fixed step of the default opening.
+ * @param {number} time @param {number} target */
+export function openingLength(time,target) {
+  return growthLength(Math.max(0,time-INTRO_DURATION),target);
+}
+
+/** Visible length omits the numerical floor used by the illustrative growth equations.
+ * @param {number} time @param {number} target */
+export function openingVisualLength(time,target) {
+  return target*Math.min(1,Math.max(0,(time-INTRO_DURATION)/GROW_DURATION));
 }
 
 /** Independent double-precision reference, used by tests only.

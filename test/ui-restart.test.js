@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 // Boot complete browser modules with the declared HTML controls, without a DOM framework.
-async function boot(supported=false) {
+async function boot(supported=false,desktop=false) {
   const html=readFileSync('index.html','utf8'), nodes=new Map();
   for(const match of html.matchAll(/\bid="([^"]+)"[^>]*>/g)) {
     const listeners={};
@@ -33,7 +33,7 @@ async function boot(supported=false) {
       createElement:()=>({width:0,height:0,getContext:()=>new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4),width:w,height:h})},{get:(t,prop)=>prop in t?t[prop]:()=>{}})}),
       body:{classList:{toggle(){}}},addEventListener(){}},
     getComputedStyle:()=>({getPropertyValue:()=> 'monospace'}),
-    matchMedia:()=>({matches:false,addEventListener(){}}),requestAnimationFrame:fn=>frames.push(fn)});
+    matchMedia:query=>({matches:query==='(min-width: 768px)'&&desktop,addEventListener(){}}),requestAnimationFrame:fn=>frames.push(fn)});
   const cache=new Map();
   async function load(url) {
     if(cache.has(url.href))return cache.get(url.href);
@@ -54,6 +54,30 @@ test('UI boots, handles unsupported GPU, and binds restart to valid form setting
   assert.equal(nodes.get('pause').disabled,true);
   assert.doesNotThrow(()=>nodes.get('restart').listeners.click());
   assert.doesNotThrow(()=>nodes.get('parameters').listeners.submit({preventDefault(){}}));
+});
+
+test('settings start hidden on desktop and phone, and remain discoverable through Settings',async()=>{
+  for(const desktop of [false,true]) {
+    const {nodes}=await boot(false,desktop);
+    assert.equal(nodes.get('settings').classList.contains('hidden'),true);
+    nodes.get('settings-toggle').listeners.click();
+    assert.equal(nodes.get('settings').classList.contains('hidden'),false);
+  }
+});
+
+test('default introduction runs only the GPU single-arm branch for the first ten seconds',async()=>{
+  const {nodes,calls,tick}=await boot(true,true);
+  await tick(100);
+  assert.match(nodes.get('phase').textContent,/predictable rhythm/);
+  nodes.get('grid-transition').value='story';nodes.get('grid-toggle').listeners.click();
+  for(let i=1;i<=150;i++)await tick(100+i*100);
+  const intro=calls.filter(c=>c.kind==='advance');
+  assert.equal(intro.reduce((total,c)=>total+c.count,0),4800);
+  assert.ok(intro.every(c=>c.p.l2===0));
+  assert.equal(calls.some(c=>c.kind==='grid'),false,'A queued story does not skip the introduction');
+  assert.match(nodes.get('phase').textContent,/one arm to two/);
+  await tick(15200);await tick(15300);
+  assert.ok(calls.filter(c=>c.kind==='advance').at(-1).p.l2>0);
 });
 
 test('grid mode resets the GPU ensemble, steps it, inspects a cell and replays in single mode',async()=>{

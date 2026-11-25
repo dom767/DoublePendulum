@@ -5,6 +5,7 @@ import { DEG } from '../src/physics/ensemble.js';
 import { DT, defaults } from '../src/physics/pendulum.js';
 import { step } from '../src/physics/integrator.js';
 import { StoryGridView } from '../src/views/story-grid.js';
+import { SingleView } from '../src/views/single.js';
 
 test('each bounded stage reveals, holds, frames closer, resets and runs in that order',()=>{
   for(const s of stages) {
@@ -72,4 +73,11 @@ test('renderer draws only four pendulums and sizes colour images to each active 
     for(const [size,t] of [[10,72],[40,110],[160,149]])view.draw(storyEnsemble(size,1,1).initial,defaults,storyFrame(t),t);
     assert.deepEqual(images,[[10,10],[40,40],[160,160]]);
   } finally {globalThis.document=originalDocument;globalThis.devicePixelRatio=originalDpr;}
+});
+
+test('single view and story opening share a screen-centred pivot at every viewport size',()=>{
+  for(const [w,h] of [[360,800],[768,1024],[1920,1080]]) {
+    const geometry=SingleView.geometry(w,h,defaults);
+    assert.equal(geometry.cx,w/2);assert.equal(geometry.cy,h/2);
+  }
 });

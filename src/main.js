@@ -1,5 +1,5 @@
 import { GPUBackend } from './compute/gpu-backend.js';
-import { DT, GROW_DURATION, growthLength } from './physics/pendulum.js';
+import { DT, INTRO_DURATION, OPENING_DURATION, openingLength, openingVisualLength } from './physics/pendulum.js';
 import { SingleView } from './views/single.js';
 import { element, setupChrome } from './ui/controls.js';
 import { createEnsemble, cellInitial, DEG } from './physics/ensemble.js';
@@ -194,30 +194,34 @@ async function frame(now) {
         select(0);syncMode();
         resetPending=false;time=0;steps=0;accumulator=0;view.clear();
       }
-      if(storyRequested&&mode==='single'&&(!grow||time>=GROW_DURATION||p.l2===0))beginStory();
+      if(storyRequested&&mode==='single'&&(!grow||time>=(p.l2===0?INTRO_DURATION:OPENING_DURATION)))beginStory();
       if(mode==='story'){await advanceStory();return;}
       const count=stepPending?1:paused?0:Math.min(32,Math.floor(accumulator/DT));
       if(stepPending) stepPending=false;else if(!paused) accumulator-=count*DT;
       // Growth uses a deterministic length per fixed step; one GPU readback per frame (not per step).
       // Skip submit/readback when there is no work — dense grids pay heavily for mapAsync.
       if(count>0) {
-        if(mode==='single' && grow && time<GROW_DURATION && p.l2>0) {
+        if(mode==='single' && grow && time<OPENING_DURATION && p.l2>0) {
           const start=time;
-          states=await backend.advanceVarying(count,i=>({...p,l2:growthLength(start+i*DT,p.l2)}));
+          if(start+count*DT<=INTRO_DURATION)states=await backend.advance(count,{...p,l2:0});
+          else states=await backend.advanceVarying(count,i=>({...p,l2:openingLength(start+i*DT,p.l2)}));
         } else { states=await backend.advance(count,p); }
-        time+=count*DT;steps+=count;
+        steps+=count;time=steps*DT;
       }
       if(resetPending)return;
       if(mode==='grid') {
         grid.draw(states,ensemble,p,selected,input('colour-source').value==='initial',!element('settings').classList.contains('hidden'));
         drawInspection(count>0);
       } else {
-        const visual={...p,l2:grow?p.l2*Math.min(1,time/GROW_DURATION):p.l2};
+        const visual={...p,l2:grow?openingVisualLength(time,p.l2):p.l2};
         view.draw(states,visual,input('trails').checked,input('compare').checked,count>0);
       }
-      element('phase').textContent=mode==='grid'?'Many beginnings. The same rules.':grow&&time<GROW_DURATION?'From one arm to two':'Deterministic does not mean predictable';
-      element('explanation').textContent=mode==='grid'?'Position records the starting angles. Colour records the current angles, unless initial-colour reference is selected.':grow&&time<GROW_DURATION?'The second arm grows over eight simulation seconds. This opening changes the system.':'Compare nearby starting angles. Some trajectories separate rapidly; others stay regular.';
-      status.textContent=`WebGPU · ${mode==='grid'?ensemble.size**2+' cells · ':''}t = ${time.toFixed(2)} s · ${steps} steps · Δt = 1/480 s${paused?' · paused':''}${accumulator>.25?' · catching up':''}${storyRequested?' · finishing the opening arm before the story':''}`;
+      const simple=mode==='single'&&(p.l2===0||(grow&&time<INTRO_DURATION));
+      const extending=mode==='single'&&grow&&time>=INTRO_DURATION&&time<OPENING_DURATION&&p.l2>0;
+      element('opening-title').textContent=simple?'The rhythm of\na single pendulum.':extending?'One more arm.\nA richer motion.':'Simple rules.\nComplex motion.';
+      element('phase').textContent=mode==='grid'?'Many beginnings. The same rules.':simple?'A predictable rhythm':extending?'From one arm to two':'Deterministic does not mean predictable';
+      element('explanation').textContent=mode==='grid'?'Position records the starting angles. Colour records the current angles, unless initial-colour reference is selected.':simple?'Back and forth, a single pendulum repeats its swing. With no friction, the same starting conditions give the same steady rhythm.':extending?'After ten seconds of regular swings, the second arm grows over eight simulation seconds. A new degree of freedom opens up richer motion.':'Compare nearby starting angles. Some trajectories separate rapidly; others stay regular.';
+      status.textContent=`WebGPU · ${mode==='grid'?ensemble.size**2+' cells · ':''}t = ${time.toFixed(2)} s · ${steps} steps · Δt = 1/480 s${paused?' · paused':''}${accumulator>.25?' · catching up':''}${storyRequested?' · finishing the single-arm introduction and growth before the story':''}`;
     } catch(error) {fail(error);} finally {busy=false;}
   }
 }

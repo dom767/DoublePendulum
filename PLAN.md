@@ -17,7 +17,7 @@ Follow-up build, revised flow: a 165-second guided story preserves the original 
 
 Create README, roadmap, progress tracker, HTML/CSS/ES-module shell, WebGPU compute backend and RK4 shader, independent numerical reference, canvas single view and controls. Provide pause, restart, single step, speed, initial angles, trails, nearby comparison, and configurable lengths/masses. Use seconds, metres, kilograms and angles from downward vertical. Keep fixed-step simulation independent of display cadence.
 
-Opening: animate the second arm from zero to the target length. Label the changing-length approximation and its singular-length regularisation; do not use its energy changes to validate conservative physics.
+Opening: keep the pivot centred and Settings initially hidden. Show a single arm for ten simulation seconds with an introduction to its predictable repeating rhythm, then animate the second arm from zero to the target length over eight seconds. Fixed-length mode skips both parts. Label the changing-length approximation and its singular-length regularisation; do not use its energy changes to validate conservative physics.
 
 Acceptance: reproducible restarts; equilibrium, symmetry, and zero-length checks; bounded energy error over 120 seconds at fixed lengths; short-time timestep convergence; actual shader compilation and short-time GPU/reference comparison. No unsupported claims about universal chaos.
 

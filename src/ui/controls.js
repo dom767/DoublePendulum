@@ -12,11 +12,11 @@ export function setupChrome() {
     panel.classList.toggle('hidden',!value); toggle.setAttribute('aria-pressed',String(value));
     scrim.classList.toggle('hidden', !value || desktop.matches); document.body.classList.toggle('panel-open',value);
   }
-  open(desktop.matches);
+  open(false);
   toggle.addEventListener('click',()=>open(panel.classList.contains('hidden')));
   scrim.addEventListener('click',()=>{open(false); toggle.focus();});
   document.addEventListener('keydown',e=>{if(e.key==='Escape'){open(false); toggle.focus();}});
-  desktop.addEventListener('change',()=>open(desktop.matches));
+  desktop.addEventListener('change',()=>open(!panel.classList.contains('hidden')));
   for(const el of [panel,element('app-nav')]) for(const type of ['pointerdown','click','wheel']) el.addEventListener(type,e=>e.stopPropagation());
   const full=element('fullscreen');
   full.addEventListener('click',async()=>{

@@ -1,6 +1,6 @@
 import { GPUBackend } from '../src/compute/gpu-backend.js';
 import { step } from '../src/physics/integrator.js';
-import { DT, defaults, energy, growthLength } from '../src/physics/pendulum.js';
+import { DT, defaults, energy, openingLength, INTRO_DURATION, GROW_DURATION } from '../src/physics/pendulum.js';
 import { createEnsemble, cellInitial, presets } from '../src/physics/ensemble.js';
 
 const output=document.getElementById('result');
@@ -27,7 +27,8 @@ try {
   }
   assert(max<.02,`GPU 120 s energy drift ${max} J`);
   gpu.reset(1.9,1.7);
-  const grown=await gpu.advanceVarying(3840,i=>({...defaults,l2:growthLength(i*DT,defaults.l2)}));
+  await gpu.advance(INTRO_DURATION/DT,{...defaults,l2:0});
+  const grown=await gpu.advanceVarying(GROW_DURATION/DT,i=>({...defaults,l2:openingLength(INTRO_DURATION+i*DT,defaults.l2)}));
   assert(grown.every(Number.isFinite),'Growth remains finite');
   const ensemble=createEnsemble(6,presets.full),saved=ensemble.initial.slice();
   gpu.resetStates(ensemble.initial);
