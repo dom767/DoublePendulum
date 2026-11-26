@@ -11,26 +11,30 @@ async function boot(supported=false,desktop=false) {
     const classes=new Set();
     const node={value:match[0].match(/\bvalue="([^"]*)"/)?.[1]??'',checked:match[0].includes('checked'),disabled:false,
       textContent:'',style:{},width:0,height:0,clientWidth:1000,clientHeight:800,
-      classList:{toggle:(x,force)=>{if(force??!classes.has(x))classes.add(x);else classes.delete(x);},contains:x=>classes.has(x),add:x=>classes.add(x)},
+      classList:{toggle:(x,force)=>{if(force??!classes.has(x))classes.add(x);else classes.delete(x);},contains:x=>classes.has(x),add:x=>classes.add(x),remove:x=>classes.delete(x)},
       addEventListener:(type,fn)=>{listeners[type]=fn;},setAttribute(){},focus(){},reportValidity:()=>true,reset(){},
       open:false,showModal(){this.open=true;},close(){this.open=false;listeners.close?.();},
+      setPointerCapture(){},releasePointerCapture(){},hasPointerCapture:()=>false,
+      getBoundingClientRect:()=>({left:0,top:0,width:1000,height:800}),
       listeners,getContext:()=>new Proxy({},{get:()=>()=>{}})};
     nodes.set(match[1],node);
   }
   nodes.get('speed').value='1';nodes.get('opening').value='grow';
   nodes.get('grid-size').value='10';nodes.get('colour-source').value='current';
-  nodes.get('grid-transition').value='instant';
+  nodes.get('grid-transition').value='instant';nodes.get('field-run').value='animate';
   const frames=[],calls=[];
   let state=new Float32Array(8);
   const gpu={device:{lost:new Promise(()=>{}),addEventListener(){}},
     reset(a,b){state=new Float32Array([a,b,0,0,a+.0001,b,0,0]);calls.push({kind:'reset',state:state.slice()});},
     resetStates(initial){state=initial.slice();calls.push({kind:'grid',state:state.slice()});},
     async advance(count,p){calls.push({kind:'advance',count,p});return state.slice();},
+    async advanceInPlace(count,p){calls.push({kind:'inplace',count,p});},
+    async readColours(){calls.push({kind:'colours'});return new Uint8ClampedArray(state.length);},
     async advanceVarying(count,paramsAt){return this.advance(count,paramsAt(0));}};
   const context=vm.createContext({console,Float32Array,Uint8ClampedArray,Math,Number,Error,String,devicePixelRatio:1,navigator:{},
-    ImageData:class ImageData{constructor(data,width,height){this.data=data;this.width=width;this.height=height??data.length/width/4;}},
+    ImageData:class ImageData{constructor(data,width,height){if(typeof data==='number'){this.width=data;this.height=width;this.data=new Uint8ClampedArray(data*width*4);}else{this.data=data;this.width=width;this.height=height??data.length/width/4;}}},
     document:{getElementById:id=>{assert.ok(nodes.has(id),`HTML declares #${id}`);return nodes.get(id);},
-      createElement:()=>({width:0,height:0,getContext:()=>new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4),width:w,height:h})},{get:(t,prop)=>prop in t?t[prop]:()=>{}})}),
+      createElement:()=>({width:0,height:0,getContext:()=>new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4),width:w,height:h}),putImageData(){},drawImage(){},setTransform(){},clearRect(){},fillRect(){},fillText(){},save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},stroke(){},arc(){},fill(){},translate(){},rotate(){}},{get:(t,prop)=>prop in t?t[prop]:()=>{}})}),
       body:{classList:{toggle(){}}},addEventListener(){}},
     getComputedStyle:()=>({getPropertyValue:()=> 'monospace'}),
     matchMedia:query=>({matches:query==='(min-width: 768px)'&&desktop,addEventListener(){}}),requestAnimationFrame:fn=>frames.push(fn)});
@@ -146,4 +150,25 @@ test('guided story bounds each grid, resets every stage, runs, replays and exits
   assert.equal(calls.filter(c=>c.kind==='grid').at(-1).state.length,16);
   nodes.get('leave-story').listeners.click();await tick(clock+=100);await tick(clock+=100);
   assert.match(nodes.get('view-status').textContent,/4 cells/);assert.equal(nodes.get('grid-size').value,'2');
+});
+
+test('pixel field matches the canvas, animates in place, then maps exactly 1000 steps',async()=>{
+  const {nodes,calls,tick}=await boot(true);
+  nodes.get('field-run').value='animate';
+  nodes.get('field-toggle').listeners.click();await tick(100);await tick(116);
+  const field=calls.find(c=>c.kind==='grid');
+  assert.equal(field.state.length,1000*800*4);
+  assert.ok(calls.some(c=>c.kind==='colours'));
+  assert.match(nodes.get('view-status').textContent,/1000×800 pixels/);
+  assert.equal(nodes.get('app').classList.contains('field-mode'),true);
+  nodes.get('field-run').value='map';
+  nodes.get('field-run').listeners.change();
+  let clock=132;
+  for(let i=0;i<80;i++)await tick(clock+=16);
+  const inplace=calls.filter(c=>c.kind==='inplace');
+  assert.ok(inplace.reduce((n,c)=>n+c.count,0)>=1000);
+  assert.match(nodes.get('render-label').textContent,/1000/);
+  nodes.get('view').listeners.wheel({preventDefault(){},deltaY:-1,clientX:250,clientY:200});
+  await tick(clock+=16);await tick(clock+=16);
+  assert.ok(calls.filter(c=>c.kind==='grid').length>=2,'Zoom resamples a new field');
 });

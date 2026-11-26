@@ -31,6 +31,13 @@
         <div class="pair"><label>θ₁ span (°)<input id="span1" type="number" min="0.0001" max="360" step="any" value="360" required></label><label>θ₂ span (°)<input id="span2" type="number" min="0.0001" max="360" step="any" value="360" required></label></div>
         <p>Cell-centre samples. θ₁ increases rightward; θ₂ increases upward. Grid mode always uses fixed lengths.</p>
       </div>
+      <div id="field-controls" class="hidden">
+        <label>Field run<select id="field-run"><option value="animate">Live animation</option><option value="map">Map · 1000 steps</option></select></label>
+        <label>Starting domain<select id="field-domain-preset"><option value="full">Full angle domain</option><option value="neighbourhood">Neighbourhood · 20°</option><option value="nearby">Nearly identical · 0.02°</option><option value="custom">Custom domain</option></select></label>
+        <div class="pair"><label>θ₁ centre (°)<input id="field-center1" type="number" min="-180" max="180" step="any" value="0" required></label><label>θ₂ centre (°)<input id="field-center2" type="number" min="-180" max="180" step="any" value="0" required></label></div>
+        <div class="pair"><label>θ₁ span (°)<input id="field-span1" type="number" min="0.0001" max="360" step="any" value="360" required></label><label>θ₂ span (°)<input id="field-span2" type="number" min="0.0001" max="360" step="any" value="360" required></label></div>
+        <p>One simulation per CSS pixel of the full view canvas. Resolution matches the canvas on Apply. Live mode keeps integrating; map mode runs exactly 1000 steps (T = 1000/480 s), then you can pan and zoom — zoom resamples and recomputes, it does not magnify a bitmap. Wheel zooms at the cursor; drag pans. Fixed lengths only.</p>
+      </div>
       <div class="pair"><label>Length 1 (m)<input id="length1" type="number" min="0.2" max="3" step="0.1" value="1" required></label><label>Length 2 (m)<input id="length2" type="number" min="0" max="3" step="0.1" value="1" required></label></div>
       <div class="pair"><label>Mass 1 (kg)<input id="mass1" type="number" min="0.2" max="5" step="0.1" value="1" required></label><label>Mass 2 (kg)<input id="mass2" type="number" min="0.2" max="5" step="0.1" value="1" required></label></div>
       <div id="opening-controls"><label>Opening scene<select id="opening"><option value="grow">Single arm · 10 s, then grow · 8 s</option><option value="fixed">Fixed lengths · energy conserving</option></select></label>
@@ -54,9 +61,16 @@
       <button id="inspect" type="button">Inspect selected cell</button>
       <p>Tap a cell, or use the row and column controls. Arrow keys move the selection when the grid has focus; Enter inspects it.</p>
     </div>
+    <div id="field-display" class="hidden">
+      <h2>Angle colour key</h2>
+      <p>Same periodic map as the grid. Colours are current (or final map) angles, not stability.</p>
+      <canvas id="field-colour-legend" width="120" height="120" role="img" aria-label="Two-dimensional periodic colour key for the pixel field"></canvas>
+      <p id="field-resolution">Simulation resolution matches the view canvas on Apply.</p>
+    </div>
     <p>No friction. Zero initial velocities. Gravity 9.81 m/s². All integration runs on WebGPU.</p>
   </aside>
   <div id="view-status" role="status">Initialising WebGPU…</div>
+  <div id="render-status" class="hidden" role="status"><div id="render-fill"></div><span id="render-label">Map 0 / 1000</span></div>
   <div class="caption"><span id="phase">A predictable rhythm</span><p id="explanation">Back and forth, a single pendulum repeats its swing. With no friction, the same starting conditions give the same steady rhythm.</p></div>
   <section id="story-overlay" class="hidden" aria-label="Guided pendulum chapters">
     <div id="story-copy"><span id="story-chapter" class="eyebrow"></span><h2 id="story-title"></h2><p id="story-caption"></p></div>
@@ -69,6 +83,7 @@
     <button id="pause" aria-label="Pause simulation" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v16M16 4v16"/></svg><span id="pause-label">Pause</span></button>
     <button id="step" aria-label="Pause and advance one integration step" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 12 8-12 8zM20 4v16"/></svg><span>Step</span></button>
     <button id="grid-toggle" aria-label="Switch between single pendulum and grid" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/></svg><span id="grid-label">Grid</span></button>
+    <button id="field-toggle" aria-label="Switch to full-canvas pixel field" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h4v4H4zM10 4h4v4h-4zM16 4h4v4h-4zM4 10h4v4H4zM10 10h4v4h-4zM16 10h4v4h-4zM4 16h4v4H4zM10 16h4v4h-4zM16 16h4v4h-4z"/></svg><span id="field-label">Field</span></button>
   </nav>
   <dialog id="inspector" aria-labelledby="inspector-title">
     <h2 id="inspector-title">Selected experiment</h2>

@@ -4,8 +4,8 @@
 
 - [ ] **1 — Single pendulum and GPU physics:** implemented; real-browser/GPU acceptance remains outstanding.
 - [ ] **2 — Visible grid and periodic colour map:** implemented; real-browser/GPU acceptance remains outstanding.
-- [ ] **3 — Pixel field and density transition:** partial: staged grids up to 160×160 and guided camera reveals implemented; pixel-resolution sampling, domain zoom and recording-performance acceptance remain outstanding.
-- [ ] **4 — Fixed-duration maps and exploration:** unbuilt.
+- [ ] **3 — Pixel field and density transition:** implemented (full-canvas one-sim-per-CSS-pixel live field + 1000-step map with domain pan/zoom); real-browser/GPU and recording-performance acceptance remain outstanding.
+- [ ] **4 — Fixed-duration maps and exploration:** partial: N=1000 final-angle map with pan/zoom/resample shipped in the Field view; bookmarks, shareable state and extra metrics remain outstanding.
 - [ ] **5 — Two-minute guided presentation:** partial: revised 165-second staged story implemented; full 120-second edit with maps remains outstanding.
 
 ## Milestone 1 implementation
@@ -29,11 +29,11 @@ Launching Chrome for automated browser verification was blocked by the execution
 
 ## Outstanding choices and limits
 
-- Confirm the browser/GPU and recording resolution before performance targets for milestone 3.
+- Confirm measured full-canvas live/map performance on the recording machine (Field uses the actual CSS canvas size).
 - Decide whether milestone 4 needs additional metrics after final-angle maps work.
 - Growth is an explicitly labelled pedagogical approximation, not a telescoping-rod dynamics model.
 - Session settings deliberately do not persist; shareable state/bookmarks arrive in milestone 4.
-- No per-display-pixel sampling, fixed-duration map or direct video export yet. A partial guided timeline now covers the single-to-dense-grid transition.
+- Direct video export is still out of scope. Guided timeline covers the single-to-dense-grid transition; Field covers per-pixel live and N=1000 map modes.
 - Deployment scripts (Run Local / Deploy Local / Deploy Prod) package to `Export/` and target `https://baffledcat.com/pendulum/`; first production upload is still a human Deploy Prod step. Packaged HTML loads `/consent.js`; a Cookie settings footer link is not in the UI yet. Packaging smoke: `packageBuild` + `npm test` (8 pass) + served `Export/Local` on 7101 with versioned bundles.
 
 ## Milestone 1 opening revision — 2026-11-25
@@ -64,6 +64,19 @@ Opening-revision verification: all 26 Node tests pass, including packaging and U
 - [ ] Run actual browser/GPU acceptance at `/checks/gpu.html` and inspect desktop/portrait/360px layouts. Previous Chrome automation launch was policy-blocked; no hardware execution or visual pass is claimed for this build.
 
 Milestone 2 verification: `npm test` passes all 15 tests, including packaging; `npm run check`, source syntax checks and `git diff --check` pass. Local HTTP smoke checks return 200 for the app, new ensemble/grid/colour/domain modules and GPU check page on claimed port 7101. The preview server is stopped before handoff. The test command now uses directory discovery because Node 20 does not expand the previous quoted glob. Milestone 3 remains unbuilt. No production deployment performed.
+
+## Milestone 3 implementation — 2026-11-25
+
+- [x] Full-canvas pixel field: one simulation per CSS pixel (width×height from the view on Apply / resample).
+- [x] Live animation mode with GPU in-place integration, GPU colourize, never-dropped steps, catching-up status.
+- [x] Map mode: exactly N = 1000 steps per pixel, progress lozenge, T = NΔt shown when complete.
+- [x] Angle-domain wheel zoom (cursor-centred) and drag pan; both resample and recompute (no bitmap magnify). Pan rebuilds on pointer release.
+- [x] Status reports true simulation resolution vs canvas size; Field run and domain controls are session-only with Restore defaults.
+- [x] Rectangular ensembles, raised GPU buffer limits, colour compute shader; unsupported WebGPU still surfaces a clear error.
+- [x] Node tests for sampling, pan/zoom, map runner, GPU colour path and UI field/map/zoom flow; browser check extended with a 64×48 map + colourize timing.
+- [ ] Actual WebGPU full-canvas performance and visual acceptance on the recording browser.
+
+Verification: `npm test` and `npm run check` pass after the field work; source syntax and `git diff --check` pass. No production deployment. Open Field in a WebGPU browser and `/checks/gpu.html` for hardware acceptance.
 
 ## Guided single-to-grid story
 

@@ -50,6 +50,17 @@ try {
     const initial=cellInitial(dense,index);gpu.reset(initial[0],initial[1]);const isolated=await gpu.advance(32,defaults);
     assert(isolated.slice(0,4).every((x,i)=>x===denseRun[index*4+i]),`Dense cell ${index} matches isolated run`);
   }
-  output.textContent=`PASS: GPU agreement ${error.toExponential(3)} rad or rad/s; 120 s max energy drift ${max.toExponential(3)} J; equilibrium, restart, zero length, growth; all 36 grid cells match isolated runs; frame grouping and retained initial conditions; 160×160 field (32 steps plus readback: ${denseMs.toFixed(1)} ms), dense corner checks. This timing excludes drawing and is not a recording frame-rate benchmark.`;
+  const {createPixelField, MAP_STEPS}=await import('../src/physics/ensemble.js');
+  const rect=createPixelField(64,48,presets.full);gpu.resetStates(rect.initial);
+  await gpu.advanceInPlace(MAP_STEPS,defaults);
+  const colours=await gpu.readColours();
+  assert(colours.length===64*48*4,'Rectangular colour readback');
+  assert(colours[3]===255&&colours.every((_,i)=>i%4!==3||colours[i]===255),'Opaque GPU colours');
+  const pixelStart=performance.now();
+  gpu.resetStates(rect.initial);
+  await gpu.advanceInPlace(32,defaults);
+  await gpu.readColours();
+  const pixelMs=performance.now()-pixelStart;
+  output.textContent=`PASS: GPU agreement ${error.toExponential(3)} rad or rad/s; 120 s max energy drift ${max.toExponential(3)} J; equilibrium, restart, zero length, growth; all 36 grid cells match isolated runs; frame grouping and retained initial conditions; 160×160 field (32 steps plus readback: ${denseMs.toFixed(1)} ms); 64×48 pixel field map ${MAP_STEPS} steps plus colourize (32-step colour sample: ${pixelMs.toFixed(1)} ms). Timings exclude full-canvas drawing and are not a recording frame-rate benchmark.`;
   gpu.device.destroy();
 } catch(error) {output.textContent=`FAIL: ${error instanceof Error?error.message:String(error)}`;}

@@ -19,7 +19,9 @@ test('GPU ensemble dispatch, parameter step count, readback size and resize life
     })
   };
   try {
-    const gpu=new GPUBackend(/** @type {any} */(device),/** @type {any} */({getBindGroupLayout:()=>({})}));
+    const layout={getBindGroupLayout:()=>({})};
+    Object.assign(device,{limits:{maxStorageBufferBindingSize:1<<30}});
+    const gpu=new GPUBackend(/** @type {any} */(device),/** @type {any} */(layout),/** @type {any} */(layout));
     const old=gpu.state;
     const e=createEnsemble(16,presets.nearby);gpu.resetStates(e.initial);
     assert.equal(/** @type {any} */(old).destroyed,true);

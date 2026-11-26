@@ -2,78 +2,119 @@ import { GPUBackend } from './compute/gpu-backend.js';
 import { DT, INTRO_DURATION, OPENING_DURATION, openingLength, openingVisualLength } from './physics/pendulum.js';
 import { SingleView } from './views/single.js';
 import { element, setupChrome } from './ui/controls.js';
-import { createEnsemble, cellInitial, DEG } from './physics/ensemble.js';
+import { createEnsemble, createPixelField, cellInitial, DEG, MAP_STEPS } from './physics/ensemble.js';
+import { zoomDomain, panDomain } from './physics/domain-view.js';
 import { GridView } from './views/grid.js';
+import { FieldView } from './views/field.js';
 import { drawLegend } from './render/angle-colour.js';
-import { setupAngleDomain, readDomain } from './ui/angle-domain.js';
+import { setupAngleDomain, readDomain, readFieldDomain, writeFieldDomain } from './ui/angle-domain.js';
 import { storyFrame, storyEnsemble, STORY_DURATION } from './story/grid-story.js';
 import { StoryGridView } from './views/story-grid.js';
+import { MapRunner } from './maps/runner.js';
 
 setupChrome();
 setupAngleDomain();
 const status=element('view-status');
+const renderStatus=element('render-status');
+const renderFill=element('render-fill');
+const renderLabel=element('render-label');
 const form=/** @type {HTMLFormElement} */(element('parameters'));
 const input=id=>/** @type {HTMLInputElement} */(element(id));
 const number=id=>Number(input(id).value);
-const view=new SingleView(/** @type {HTMLCanvasElement} */(element('view')));
-const grid=new GridView(/** @type {HTMLCanvasElement} */(element('view')));
-const storyView=new StoryGridView(/** @type {HTMLCanvasElement} */(element('view')));
+const canvas=/** @type {HTMLCanvasElement} */(element('view'));
+const view=new SingleView(canvas);
+const grid=new GridView(canvas);
+const fieldView=new FieldView(canvas);
+const storyView=new StoryGridView(canvas);
 const cellView=new SingleView(/** @type {HTMLCanvasElement} */(element('cell-view')));
 const inspector=/** @type {HTMLDialogElement} */(element('inspector'));
 drawLegend(/** @type {HTMLCanvasElement} */(element('colour-legend')));
+drawLegend(/** @type {HTMLCanvasElement} */(element('field-colour-legend')));
 let ensemble=createEnsemble(10,{center1:0,center2:0,span1:360,span2:360});
-let mode='single', requestedMode='single', selected=0;
+let mode='single', requestedMode='single', selected=0, fieldRun='animate';
 let pendingConfig;
 let p={l1:1,l2:1,m1:1,m2:1}, grow=true, time=0, steps=0, paused=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let states=new Float32Array([110*Math.PI/180,100*Math.PI/180,0,0,110*Math.PI/180+.0001,100*Math.PI/180,0,0]);
+/** @type {Uint8ClampedArray|null} */ let fieldColours=null;
 let backend, busy=false, resetPending=true, stepPending=false, accumulator=0, last=0, failed=false;
 const reducedMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let story,storyRequested=false,replayRequested=false,exploreRequested=false;
 let singleInitial=[110*DEG,100*DEG];
+const mapRunner=new MapRunner();
+let mapGeneration=0;
+/** @type {{x:number,y:number}|null} */ let panLast=null;
+/** @type {import('./physics/ensemble.js').AngleDomain|null} */ let panDomainDraft=null;
+function canvasSize() {
+  return {width:Math.max(2,Math.round(canvas.clientWidth)),height:Math.max(2,Math.round(canvas.clientHeight))};
+}
 function setPaused(value) {
   paused=value; element('pause-label').textContent=value?'Play':'Pause';
   element('pause').setAttribute('aria-label',value?'Play simulation':'Pause simulation');
 }
 setPaused(paused);
+function setFieldEnabled(on) {
+  for(const id of ['field-run','field-domain-preset','field-center1','field-center2','field-span1','field-span2']) input(id).disabled=!on;
+}
+function setGridEnabled(on) {
+  for(const id of ['domain-preset','grid-size','center1','center2','span1','span2','cell-row','cell-col']) input(id).disabled=!on;
+}
 function restart() {
+  setGridEnabled(requestedMode==='grid'); setFieldEnabled(requestedMode==='field');
   if(!form.reportValidity()) return;
   if(mode==='story'){story=null;mode='single';requestedMode='single';storyRequested=false;replayRequested=false;exploreRequested=false;syncMode();}
+  const size=canvasSize();
   pendingConfig={p:{l1:number('length1'),l2:number('length2'),m1:number('mass1'),m2:number('mass2')},
     grow:input('opening').value==='grow',a:number('angle1')*DEG,b:number('angle2')*DEG,
-    mode:requestedMode,ensemble:createEnsemble(number('grid-size'),readDomain())};
+    mode:requestedMode,fieldRun:input('field-run').value,
+    ensemble:requestedMode==='field'?createPixelField(size.width,size.height,readFieldDomain()):createEnsemble(number('grid-size'),readDomain())};
   resetPending=true; accumulator=0; view.clear();cellView.clear();
 }
 form.addEventListener('submit',e=>{e.preventDefault();restart();});
-element('defaults').addEventListener('click',()=>{form.reset();input('speed').value='1';input('trails').checked=true;input('compare').checked=false;input('colour-source').value='current';input('grid-transition').value='story';restart();});
+element('defaults').addEventListener('click',()=>{
+  form.reset();input('speed').value='1';input('trails').checked=true;input('compare').checked=false;
+  input('colour-source').value='current';input('grid-transition').value='story';input('field-run').value='animate';
+  restart();
+});
 element('restart').addEventListener('click',restart);
 element('pause').addEventListener('click',()=>setPaused(!paused));
 element('step').addEventListener('click',()=>{setPaused(true);stepPending=true;});
 input('trails').addEventListener('change',()=>view.clear());
 input('compare').addEventListener('change',()=>view.clear());
+input('field-run').addEventListener('change',()=>{ if(mode==='field'){requestedMode='field';restart();} });
 function syncMode() {
-  const isGrid=mode==='grid';
+  const isGrid=mode==='grid', isField=mode==='field';
   element('app').classList.toggle('grid-mode',isGrid);
+  element('app').classList.toggle('field-mode',isField);
   element('app').classList.toggle('story-mode',mode==='story');
   element('story-overlay').classList.toggle('hidden',mode!=='story');
   for(const id of ['settings-toggle','step'])/** @type {HTMLButtonElement} */(element(id)).disabled=mode==='story';
-  for(const id of ['single-controls','opening-controls','single-display'])element(id).classList.toggle('hidden',isGrid);
+  for(const id of ['single-controls','opening-controls','single-display'])element(id).classList.toggle('hidden',isGrid||isField);
   for(const id of ['grid-controls','grid-display'])element(id).classList.toggle('hidden',!isGrid);
+  for(const id of ['field-controls','field-display'])element(id).classList.toggle('hidden',!isField);
+  setGridEnabled(isGrid); setFieldEnabled(isField);
   element('grid-toggle').setAttribute('aria-pressed',String(isGrid));
+  element('field-toggle').setAttribute('aria-pressed',String(isField));
   element('grid-label').textContent=mode==='story'?'Exit':isGrid?'Single':'Grid';
+  element('field-label').textContent=isField?'Single':'Field';
   element('view').setAttribute('tabindex',isGrid?'0':'-1');
-  element('view').setAttribute('aria-label',isGrid?'Pendulum grid. Arrow keys select a cell; Enter opens inspection.':'Animated double pendulum');
-  for(const id of ['cell-row','cell-col'])input(id).max=String(ensemble.size);
+  element('view').setAttribute('aria-label',isField?'Pixel field of double pendulums. Wheel zooms the angle domain; drag pans.':isGrid?'Pendulum grid. Arrow keys select a cell; Enter opens inspection.':'Animated double pendulum');
+  if(isGrid) for(const id of ['cell-row','cell-col'])input(id).max=String(ensemble.size);
+  if(isField) element('field-resolution').textContent=`Simulation ${ensemble.width} × ${ensemble.height} · one pendulum per CSS pixel · canvas ${canvas.clientWidth} × ${canvas.clientHeight}`;
+  renderStatus.classList.toggle('hidden',!(isField&&fieldRun==='map'));
 }
 element('grid-toggle').addEventListener('click',()=>{
   if(mode==='story'){exploreRequested=true;return;}
   if(mode==='single'&&input('grid-transition').value==='story'){requestStory();return;}
-  if(!form.reportValidity())return;
-  requestedMode=requestedMode==='single'?'grid':'single';restart();
+  requestedMode=mode==='grid'?'single':'grid';restart();
+});
+element('field-toggle').addEventListener('click',()=>{
+  if(mode==='story'){exploreRequested=true;return;}
+  requestedMode=mode==='field'?'single':'field';restart();
 });
 function requestStory() {
   if(!backend||failed)return;
   if(mode==='story'){replayRequested=true;return;}
-  if(mode==='grid'){requestedMode='single';restart();}
+  if(mode==='grid'||mode==='field'){requestedMode='single';restart();}
   storyRequested=true;setPaused(reducedMotion);
 }
 element('play-story').addEventListener('click',requestStory);
@@ -140,12 +181,12 @@ function inspect() {
 element('inspect').addEventListener('click',inspect);
 element('close-inspector').addEventListener('click',()=>inspector.close());
 inspector.addEventListener('close',()=>element('inspect').focus());
-element('view').addEventListener('click',event=>{
+canvas.addEventListener('click',event=>{
   if(mode!=='grid')return;
-  const rect=element('view').getBoundingClientRect(),index=grid.hit(event.clientX-rect.left,event.clientY-rect.top,ensemble.size);
+  const rect=canvas.getBoundingClientRect(),index=grid.hit(event.clientX-rect.left,event.clientY-rect.top,ensemble.size);
   if(index>=0){select(index);inspect();}
 });
-element('view').addEventListener('keydown',event=>{
+canvas.addEventListener('keydown',event=>{
   if(mode!=='grid')return;
   const deltas={ArrowLeft:-1,ArrowRight:1,ArrowUp:-ensemble.size,ArrowDown:ensemble.size};
   if(event.key in deltas){event.preventDefault();select(Math.max(0,Math.min(ensemble.size**2-1,selected+deltas[event.key])));}
@@ -165,6 +206,60 @@ function drawInspection(sample) {
   element('cell-state').textContent=`t = ${time.toFixed(3)} s · ${steps} steps · current θ₁ ${(current[0]/DEG).toFixed(3)}° · θ₂ ${(current[1]/DEG).toFixed(3)}°`;
   cellView.draw(current,p,true,false,sample);
 }
+function resampleField(domain) {
+  writeFieldDomain(domain);
+  const size=canvasSize();
+  ensemble=createPixelField(size.width,size.height,domain);
+  backend.resetStates(ensemble.initial);
+  states=ensemble.initial.slice();
+  fieldColours=null;time=0;steps=0;accumulator=0;
+  if(fieldRun==='map') mapGeneration=mapRunner.begin(MAP_STEPS);
+  element('field-resolution').textContent=`Simulation ${ensemble.width} × ${ensemble.height} · one pendulum per CSS pixel · canvas ${size.width} × ${size.height}`;
+}
+canvas.addEventListener('wheel',event=>{
+  if(mode!=='field')return;
+  event.preventDefault();
+  const hit=fieldView.hit(event.clientX,event.clientY); if(!hit)return;
+  const factor=event.deltaY>0?1.25:0.8;
+  resampleField(zoomDomain(ensemble.domain,factor,hit.u,hit.v));
+},{passive:false});
+canvas.addEventListener('pointerdown',event=>{
+  if(mode!=='field'||event.button!==0)return;
+  panLast={x:event.clientX,y:event.clientY};
+  panDomainDraft={...ensemble.domain};
+  canvas.classList.add('is-panning');
+  canvas.setPointerCapture(event.pointerId);
+});
+canvas.addEventListener('pointermove',event=>{
+  if(mode!=='field'||!panLast||!panDomainDraft)return;
+  const w=canvas.clientWidth,h=canvas.clientHeight;
+  if(w<=0||h<=0)return;
+  const du=(event.clientX-panLast.x)/w, dv=(event.clientY-panLast.y)/h;
+  panLast={x:event.clientX,y:event.clientY};
+  if(Math.abs(du)<1e-6&&Math.abs(dv)<1e-6)return;
+  // Update the draft domain while dragging; resample once on release so full-canvas maps are not rebuilt every move.
+  panDomainDraft=panDomain(panDomainDraft,du,dv);
+  writeFieldDomain(panDomainDraft);
+  fieldView.draw(fieldColours,ensemble.width,ensemble.height,panDomainDraft,`${ensemble.width}×${ensemble.height} · panning…`);
+});
+function endPan(event) {
+  if(panDomainDraft&&mode==='field') resampleField(panDomainDraft);
+  if(panLast&&canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  panLast=null; panDomainDraft=null; canvas.classList.remove('is-panning');
+}
+canvas.addEventListener('pointerup',endPan);
+canvas.addEventListener('pointercancel',endPan);
+function updateMapProgress() {
+  const pct=Math.round(mapRunner.progress*100);
+  renderFill.style.width=`${pct}%`;
+  renderLabel.textContent=mapRunner.complete?`Map complete · ${MAP_STEPS} steps · T = ${(MAP_STEPS*DT).toFixed(3)} s`:`Map ${mapRunner.done} / ${MAP_STEPS}`;
+}
+function paintField() {
+  const caption=fieldRun==='map'
+    ?(mapRunner.complete?`${ensemble.width}×${ensemble.height} map · ${MAP_STEPS} steps`:`${ensemble.width}×${ensemble.height} map · computing…`)
+    :`${ensemble.width}×${ensemble.height} live field`;
+  fieldView.draw(fieldColours,ensemble.width,ensemble.height,ensemble.domain,caption);
+}
 document.addEventListener('visibilitychange',()=>{last=0;accumulator=0;});
 function fail(error) {
   failed=true; setPaused(true); status.classList.add('error'); status.textContent=error instanceof Error?error.message:String(error);
@@ -178,7 +273,6 @@ async function frame(now) {
   if(!paused && !document.hidden) accumulator+=elapsed*number('speed');
   if(mode==='story') {
     if(!paused&&!document.hidden)story.elapsed=Math.min(STORY_DURATION,story.elapsed+Math.min(.1,elapsed));
-    // A boundary is applied by the serialized GPU loop before rendering its differently sized field.
     if(storyFrame(story.elapsed,reducedMotion).stage===story.stage)try {paintStory();}catch(error){fail(error);return;}
   }
   if(!busy && backend) {
@@ -187,19 +281,41 @@ async function frame(now) {
       if(resetPending) {
         if(!pendingConfig)restart();
         const config=pendingConfig;
-        p=config.p;grow=config.grow;mode=config.mode;ensemble=config.ensemble;
+        p=config.p;grow=config.grow;mode=config.mode;ensemble=config.ensemble;fieldRun=config.fieldRun;
         singleInitial=[config.a,config.b];
-        if(mode==='grid'){backend.resetStates(ensemble.initial);states=ensemble.initial.slice();}
+        if(mode==='grid'||mode==='field'){backend.resetStates(ensemble.initial);states=ensemble.initial.slice();fieldColours=null;}
         else {backend.reset(config.a,config.b);states=new Float32Array([config.a,config.b,0,0,config.a+.0001,config.b,0,0]);}
+        if(mode==='field'&&fieldRun==='map') mapGeneration=mapRunner.begin(MAP_STEPS);
+        else mapRunner.cancel();
         select(0);syncMode();
         resetPending=false;time=0;steps=0;accumulator=0;view.clear();
       }
       if(storyRequested&&mode==='single'&&(!grow||time>=(p.l2===0?INTRO_DURATION:OPENING_DURATION)))beginStory();
       if(mode==='story'){await advanceStory();return;}
+      if(mode==='field') {
+        if(fieldRun==='map') {
+          if(!mapRunner.complete&&!paused&&!document.hidden) {
+            const gen=mapGeneration;
+            await mapRunner.pump(async batch=>{
+              await backend.advanceInPlace(batch,p);
+              steps+=batch;time=steps*DT;
+            },gen,32);
+            if(gen===mapGeneration) fieldColours=await backend.readColours();
+          } else if(!fieldColours) fieldColours=await backend.readColours();
+          updateMapProgress();
+        } else {
+          const count=stepPending?1:paused?0:Math.min(32,Math.floor(accumulator/DT));
+          if(stepPending) stepPending=false;else if(!paused) accumulator-=count*DT;
+          if(count>0){await backend.advanceInPlace(count,p);steps+=count;time=steps*DT;}
+          if(count>0||!fieldColours) fieldColours=await backend.readColours();
+        }
+        if(resetPending)return;
+        paintField();
+        status.textContent=`WebGPU · ${ensemble.width}×${ensemble.height} pixels · ${fieldRun==='map'?'map N='+MAP_STEPS+' · ':''}t = ${time.toFixed(2)} s · ${steps} steps · Δt = 1/480 s${paused?' · paused':''}${accumulator>.25?' · catching up':''}`;
+        return;
+      }
       const count=stepPending?1:paused?0:Math.min(32,Math.floor(accumulator/DT));
       if(stepPending) stepPending=false;else if(!paused) accumulator-=count*DT;
-      // Growth uses a deterministic length per fixed step; one GPU readback per frame (not per step).
-      // Skip submit/readback when there is no work — dense grids pay heavily for mapAsync.
       if(count>0) {
         if(mode==='single' && grow && time<OPENING_DURATION && p.l2>0) {
           const start=time;
@@ -226,6 +342,7 @@ async function frame(now) {
   }
 }
 
+setGridEnabled(false); setFieldEnabled(false);
 GPUBackend.create().then(gpu=>{
   backend=gpu;
   gpu.device.lost.then(info=>fail(new Error(`GPU device lost: ${info.message}. Reload to reconnect.`)));
