@@ -14,22 +14,22 @@ async function boot(supported=false,desktop=false,options={}) {
       textContent:'',style:{},width:0,height:0,clientWidth:1000,clientHeight:800,children,
       appendChild(child){children.push(child);return child;},
       classList:{toggle:(x,force)=>{if(force??!classes.has(x))classes.add(x);else classes.delete(x);},contains:x=>classes.has(x),add:x=>classes.add(x),remove:x=>classes.delete(x)},
-      addEventListener:(type,fn)=>{listeners[type]=fn;},setAttribute(){},focus(){},reportValidity:()=>true,reset(){},
+      addEventListener:(type,fn)=>{const previous=listeners[type];listeners[type]=e=>{previous?.(e);return fn(e);};},setAttribute(){},focus(){},reportValidity:()=>true,reset(){},
       open:false,showModal(){this.open=true;},close(){this.open=false;listeners.close?.();},
       setPointerCapture(){},releasePointerCapture(){},hasPointerCapture:()=>false,
       getBoundingClientRect:()=>({left:0,top:0,width:1000,height:800}),
       listeners,getContext:()=>new Proxy({},{get:()=>()=>{}})};
     nodes.set(match[1],node);
   }
-  nodes.get('speed').value='1';nodes.get('opening').value='grow';
+  nodes.get('speed').value='1';nodes.get('opening').value='fixed';
   nodes.get('grid-size').value='10';nodes.get('colour-source').value='current';
-  nodes.get('grid-transition').value='instant';nodes.get('field-run').value='animate';
+  nodes.get('field-run').value='animate';
   nodes.get('map-metric').value='final-angle';nodes.get('map-dt').value='480';
   nodes.get('domain-preset').value='full';nodes.get('field-domain-preset').value='full';
   const frames=[],calls=[],copied=[];
   const storageMap=new Map();
   let state=new Float32Array(8);
-  const gpu={device:{lost:new Promise(()=>{}),addEventListener(){}},
+  const gpu={fork(){return {...this,destroy(){}};},device:{lost:new Promise(()=>{}),addEventListener(){}},
     reset(a,b){state=new Float32Array([a,b,0,0,a+.0001,b,0,0]);calls.push({kind:'reset',state:state.slice()});},
     resetStates(initial){state=initial.slice();calls.push({kind:'grid',state:state.slice()});},
     resetMetricStates(initial,metric){state=initial.slice();calls.push({kind:'grid',state:state.slice(),metric});},
@@ -39,7 +39,7 @@ async function boot(supported=false,desktop=false,options={}) {
     async readColours(mode=0,target=1000){calls.push({kind:'colours',mode,target});return new Uint8ClampedArray(state.length);},
     async advanceVarying(count,paramsAt){return this.advance(count,paramsAt(0));}};
   const location={origin:'http://127.0.0.1:7100',pathname:'/',search:'',hash:options.hash||''};
-  const context=vm.createContext({console,Float32Array,Uint8ClampedArray,Uint32Array,Math,Number,Error,String,Array,Object,JSON,Date,URLSearchParams,devicePixelRatio:1,
+  const context=vm.createContext({console,Float32Array,Uint8ClampedArray,Uint32Array,Math,Number,Error,String,Array,Object,JSON,Date,URLSearchParams,setTimeout,clearTimeout,devicePixelRatio:1,
     location,history:{replaceState(_s,_t,url){const i=String(url).indexOf('#');location.hash=i>=0?String(url).slice(i):'';}},
     localStorage:{getItem:k=>storageMap.get(k)??null,setItem:(k,v)=>{storageMap.set(k,String(v));}},
     navigator:{clipboard:{async writeText(text){copied.push(text);}}},
@@ -80,11 +80,12 @@ test('settings start hidden on desktop and phone, and remain discoverable throug
   }
 });
 
-test('default introduction runs only the GPU single-arm branch for the first ten seconds',async()=>{
+test('optional introduction runs only the GPU single-arm branch for the first ten seconds',async()=>{
   const {nodes,calls,tick}=await boot(true,true);
+  nodes.get('opening').value='grow';
   await tick(100);
   assert.match(nodes.get('phase').textContent,/predictable rhythm/);
-  nodes.get('grid-transition').value='story';nodes.get('grid-toggle').listeners.click();
+  nodes.get('play-story').listeners.click();
   for(let i=1;i<=150;i++)await tick(100+i*100);
   const intro=calls.filter(c=>c.kind==='advance');
   assert.equal(intro.reduce((total,c)=>total+c.count,0),4800);
@@ -123,7 +124,7 @@ test('grid mode resets the GPU ensemble, steps it, inspects a cell and replays i
 test('guided story bounds each grid, resets every stage, runs, replays and exits at the active size',async()=>{
   const {nodes,calls,tick}=await boot(true);
   nodes.get('opening').value='fixed';await tick(100);
-  nodes.get('grid-transition').value='story';nodes.get('grid-toggle').listeners.click();await tick(200);
+  nodes.get('play-story').listeners.click();await tick(200);
   const seed=calls.find(c=>c.kind==='grid').state,source=calls.find(c=>c.kind==='reset').state;
   assert.equal(seed.length,4*4);assert.deepEqual(seed.slice(0,4),source.slice(0,4));
   let clock=200;
@@ -180,11 +181,13 @@ test('pixel field matches the canvas, animates in place, then maps exactly 1000 
   assert.ok(inplace.reduce((n,c)=>n+c.count,0)>=1000);
   assert.match(nodes.get('render-label').textContent,/1000/);
   nodes.get('view').listeners.wheel({preventDefault(){},deltaY:-1,clientX:250,clientY:200});
+  const beforeZoom=calls.filter(c=>c.kind==='grid').length;
+  await new Promise(resolve=>setTimeout(resolve,170));
   await tick(clock+=16);await tick(clock+=16);
-  assert.ok(calls.filter(c=>c.kind==='grid').length>=2,'Zoom resamples a new field');
+  assert.ok(calls.filter(c=>c.kind==='grid').length>beforeZoom,'Zoom resamples a new field');
 });
 
-test('milestone 4 map controls: metrics, configurable N/Δt, preview badge, bookmarks, reset view, and share link',async()=>{
+test('milestone 4 map controls: metrics, fixed N/Δt, preview badge, bookmarks, reset view, and share link',async()=>{
   const {nodes,calls,copied,tick}=await boot(true,true);
   let clock=100;
   await tick(clock+=16);
@@ -214,8 +217,8 @@ test('milestone 4 map controls: metrics, configurable N/Δt, preview badge, book
   assert.match(nodes.get('bookmark-status').textContent,/Candidate island/);
   await nodes.get('copy-share-link').listeners.click();
   assert.equal(copied.length,1);
-  assert.match(copied[0],/#.*metric=sensitivity.*n=400.*dt=960/);
-  nodes.get('field-reset-view').listeners.click();
+  assert.match(copied[0],/#.*metric=sensitivity.*n=1000.*dt=960/);
+  nodes.get('field-reset-view').listeners.click();await tick(clock+=16);
   assert.equal(nodes.get('field-span1').value,'360');
 
   // Boot a fresh instance from the copied share link hash.
@@ -224,6 +227,21 @@ test('milestone 4 map controls: metrics, configurable N/Δt, preview badge, book
   await shared.tick(200);
   assert.equal(shared.nodes.get('app').classList.contains('field-mode'),true);
   assert.equal(shared.nodes.get('map-metric').value,'sensitivity');
-  assert.equal(shared.nodes.get('map-steps').value,'400');
+  assert.equal(shared.nodes.get('map-steps').value,'1000');
   assert.equal(shared.nodes.get('map-dt').value,'960');
+});
+
+
+test('direct modes stay explicit and static computation completes while paused',async()=>{
+  const {nodes,calls,tick}=await boot(true);await tick(100);
+  assert.equal(calls.filter(c=>c.kind==='advance').length,0);
+  nodes.get('grid-toggle').listeners.click();await tick(116);
+  assert.equal(nodes.get('grid-label').textContent,'Grid');assert.match(nodes.get('view-status').textContent,/100 cells/);
+  nodes.get('grid-toggle').listeners.click();await tick(132);assert.match(nodes.get('view-status').textContent,/100 cells/);
+  nodes.get('pause').listeners.click();nodes.get('field-run').value='map';nodes.get('field-toggle').listeners.click();
+  for(let i=0;i<90;i++)await tick(148+i*16);
+  assert.match(nodes.get('render-label').textContent,/Complete/);assert.equal(nodes.get('pause-label').textContent,'Play');
+  const batches=calls.filter(c=>c.kind==='inplace');assert.ok(batches.length>0);
+  const completed=calls.length;await tick(2000);assert.equal(calls.length,completed,'Completed static pixels never advance again');
+  nodes.get('single-toggle').listeners.click();await tick(2016);assert.equal(nodes.get('opening').value,'fixed');
 });

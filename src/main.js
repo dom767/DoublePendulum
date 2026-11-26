@@ -1,3 +1,6 @@
+import { setupSingleDrag } from './ui/single-drag.js';
+import { setupMapGestures } from './ui/map-gestures.js';
+import { MapInspector } from './ui/map-inspector.js';
 import { GPUBackend } from './compute/gpu-backend.js';
 import { DT, INTRO_DURATION, OPENING_DURATION, openingLength, openingVisualLength } from './physics/pendulum.js';
 import { SingleView } from './views/single.js';
@@ -15,7 +18,7 @@ import { DEFAULT_MAP_STEPS, MAP_METRICS, isValidMetric, isValidDtDenom, formatDt
 import { BookmarkStore } from './maps/bookmarks.js';
 import { encodeShareHash, decodeShareHash } from './maps/state.js';
 
-setupChrome();
+setupChrome(()=>{if(!matchMedia('(min-width: 768px)').matches)pointInspector.close();});
 setupAngleDomain();
 const status=element('view-status');
 const renderStatus=element('render-status');
@@ -38,7 +41,7 @@ let mode='single', requestedMode='single', selected=0, fieldRun='animate';
 /** @type {import('./maps/metrics.js').MapMetricId} */ let mapMetric='final-angle';
 let mapSteps=DEFAULT_MAP_STEPS, mapDtDenom=480, mapPreview=true;
 let pendingConfig;
-let p={l1:1,l2:1,m1:1,m2:1}, grow=true, time=0, steps=0, paused=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let p={l1:1,l2:1,m1:1,m2:1}, grow=false, time=0, steps=0, paused=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let states=new Float32Array([110*Math.PI/180,100*Math.PI/180,0,0,110*Math.PI/180+.0001,100*Math.PI/180,0,0]);
 /** @type {Uint8ClampedArray|null} */ let fieldColours=null;
 let backend, busy=false, resetPending=true, stepPending=false, accumulator=0, last=0, failed=false;
@@ -48,11 +51,7 @@ let singleInitial=[110*DEG,100*DEG];
 const mapRunner=new MapRunner();
 const bookmarkStore=new BookmarkStore();
 let mapGeneration=0;
-/** @type {{x:number,y:number}|null} */ let panLast=null;
-/** @type {{x:number,y:number}|null} */ let panOrigin=null;
 let panMoved=false;
-/** @type {{dx:number,dy:number}|null} */ let panDelta=null;
-/** @type {import('./physics/ensemble.js').AngleDomain|null} */ let panDomainDraft=null;
 /** @type {{theta1:number,theta2:number,u:number,v:number}|null} */ let fieldProbe=null;
 
 function canvasSize() {
@@ -63,8 +62,8 @@ function readMapMetric() {
   return isValidMetric(raw)?raw:'final-angle';
 }
 function readMapSteps() {
-  const n=Math.round(number('map-steps'));
-  return Number.isFinite(n)&&n>=10&&n<=100000?n:DEFAULT_MAP_STEPS;
+  input('map-steps').value=String(DEFAULT_MAP_STEPS);
+  return DEFAULT_MAP_STEPS;
 }
 function readMapDtDenom() {
   const d=Number(input('map-dt').value);
@@ -140,7 +139,8 @@ function restart() {
     mode:requestedMode,fieldRun:run,metric:readMapMetric(),mapSteps:readMapSteps(),mapDtDenom:readMapDtDenom(),
     mapPreview:input('map-preview').checked,
     ensemble:requestedMode==='field'?makeFieldEnsemble(size.width,size.height,readFieldDomain(),run):createEnsemble(number('grid-size'),readDomain())};
-  resetPending=true; accumulator=0; fieldProbe=null; updateProbeUI(); view.clear(); cellView.clear(); fieldView.clear();
+  cancelInteractions(); mapRunner.cancel(); mapGeneration++; pointInspector.close();
+  resetPending=true; stepPending=false; accumulator=0; fieldProbe=null; updateProbeUI(); view.clear(); cellView.clear(); fieldView.clear();
 }
 function applyShareState(state) {
   for(const [id,val] of [['length1',state.p.l1],['length2',state.p.l2],['mass1',state.p.m1],['mass2',state.p.m2]]) input(id).value=String(val);
@@ -169,13 +169,13 @@ function loadShareHash(hash) {
   if(!decoded) return false;
   if(decoded.ok===false) { element('share-status').textContent=decoded.error; return false; }
   applyShareState(decoded.state);
-  element('share-status').textContent='Loaded shared view.';
+  element('share-status').textContent=decoded.notice||'Loaded shared view.';
   return true;
 }
 form.addEventListener('submit',e=>{e.preventDefault();restart();});
 element('defaults').addEventListener('click',()=>{
   form.reset();input('speed').value='1';input('trails').checked=true;input('compare').checked=false;
-  input('colour-source').value='current';input('grid-transition').value='story';input('field-run').value='animate';
+  input('colour-source').value='current';input('field-run').value='animate';
   input('map-metric').value='final-angle';input('map-steps').value=String(DEFAULT_MAP_STEPS);
   input('map-dt').value='480';input('map-preview').checked=true;
   element('share-status').textContent=''; element('bookmark-status').textContent='';
@@ -223,22 +223,24 @@ function syncMode() {
   setGridEnabled(isGrid); setFieldEnabled(isField);
   element('grid-toggle').setAttribute('aria-pressed',String(isGrid));
   element('field-toggle').setAttribute('aria-pressed',String(isField));
-  element('grid-label').textContent=mode==='story'?'Exit':isGrid?'Single':'Grid';
-  element('field-label').textContent=isField?'Single':'Field';
-  element('view').setAttribute('tabindex',isGrid?'0':'-1');
-  element('view').setAttribute('aria-label',isField?'Pixel field and fixed-duration map. Wheel zooms the angle domain; drag pans; click selects a starting point.':isGrid?'Pendulum grid. Arrow keys select a cell; Enter opens inspection.':'Animated double pendulum');
+  element('single-toggle').setAttribute('aria-pressed',String(mode==='single'));
+  element('grid-label').textContent='Grid';
+  element('field-label').textContent='Map';
+  element('view').setAttribute('tabindex','0');
+  element('view').setAttribute('aria-label',isField?'Pixel field and fixed-duration map. Wheel or pinch zooms; drag pans; click selects a starting point. Arrow keys pan, plus/minus zoom, Enter previews the centre.':isGrid?'Pendulum grid. Arrow keys select a cell; Enter opens inspection.':'Animated double pendulum');
   if(isGrid) for(const id of ['cell-row','cell-col'])input(id).max=String(ensemble.size);
   if(isField) { updateFieldResolutionText(); updateFieldLegend(); updateProbeUI(); }
   renderStatus.classList.toggle('hidden',!(isField&&fieldRun==='map'));
 }
-element('grid-toggle').addEventListener('click',()=>{
-  if(mode==='story'){exploreRequested=true;return;}
-  if(mode==='single'&&input('grid-transition').value==='story'){requestStory();return;}
-  requestedMode=mode==='grid'?'single':'grid';restart();
-});
-element('field-toggle').addEventListener('click',()=>{
-  if(mode==='story'){exploreRequested=true;return;}
-  requestedMode=mode==='field'?'single':'field';restart();
+for(const [id,next] of [['single-toggle','single'],['grid-toggle','grid'],['field-toggle','field']]) {
+  element(id).addEventListener('click',()=>{
+    story=null;storyRequested=false;replayRequested=false;exploreRequested=false;
+    if(mode==='story')mode='single';
+    requestedMode=next;if(next==='single')input('opening').value='fixed';restart();
+  });
+}
+element('shot').addEventListener('click',()=>{
+  const link=document.createElement('a');link.download='double-pendulum.png';link.href=canvas.toDataURL('image/png');link.click();
 });
 function requestStory() {
   if(!backend||failed)return;
@@ -316,6 +318,14 @@ canvas.addEventListener('click',event=>{
   if(index>=0){select(index);inspect();}
 });
 canvas.addEventListener('keydown',event=>{
+  if(mode==='field') {
+    const rect=canvas.getBoundingClientRect();
+    if(event.key==='Enter'){event.preventDefault();choosePoint(rect.left+rect.width/2,rect.top+rect.height/2);}
+    const shifts={ArrowLeft:[-.1,0],ArrowRight:[.1,0],ArrowUp:[0,-.1],ArrowDown:[0,.1]};
+    if(event.key in shifts){event.preventDefault();const [x,y]=shifts[event.key];queuedDomain=panDomain(ensemble.domain,x,y);}
+    if(event.key==='+'||event.key==='-'){event.preventDefault();queuedDomain=zoomDomain(ensemble.domain,event.key==='+'?.8:1.25,.5,.5);}
+    return;
+  }
   if(mode!=='grid')return;
   const deltas={ArrowLeft:-1,ArrowRight:1,ArrowUp:-ensemble.size,ArrowDown:ensemble.size};
   if(event.key in deltas){event.preventDefault();select(Math.max(0,Math.min(ensemble.size**2-1,selected+deltas[event.key])));}
@@ -376,15 +386,15 @@ function resampleField(domain) {
 }
 element('field-zoom-in').addEventListener('click',()=>{
   if(mode!=='field') return;
-  resampleField(zoomDomain(ensemble.domain,0.5,0.5,0.5));
+  queuedDomain=zoomDomain(ensemble.domain,0.5,0.5,0.5);
 });
 element('field-zoom-out').addEventListener('click',()=>{
   if(mode!=='field') return;
-  resampleField(zoomDomain(ensemble.domain,2,0.5,0.5));
+  queuedDomain=zoomDomain(ensemble.domain,2,0.5,0.5);
 });
 element('field-reset-view').addEventListener('click',()=>{
   if(mode!=='field') return;
-  resampleField(presets.full);
+  queuedDomain={...presets.full};
   input('field-domain-preset').value='full';
 });
 input('bookmark-select').addEventListener('change',syncBookmarkButtons);
@@ -455,61 +465,46 @@ element('copy-share-link').addEventListener('click',async()=>{
     element('share-status').textContent=`Share hash: ${hash}`;
   }
 });
-canvas.addEventListener('wheel',event=>{
-  if(mode!=='field')return;
-  event.preventDefault();
-  const hit=fieldView.hit(event.clientX,event.clientY); if(!hit)return;
-  const factor=event.deltaY>0?1.25:0.8;
-  resampleField(zoomDomain(ensemble.domain,factor,hit.u,hit.v));
-},{passive:false});
-canvas.addEventListener('pointerdown',event=>{
-  if(mode!=='field'||event.button!==0)return;
-  panLast={x:event.clientX,y:event.clientY};
-  panOrigin={x:event.clientX,y:event.clientY};
-  panMoved=false;
-  panDelta=null;
-  panDomainDraft={...ensemble.domain};
-  canvas.classList.add('is-panning');
-  canvas.setPointerCapture(event.pointerId);
+const pointInspector=new MapInspector({panel:element('map-inspector'),
+  canvas:/** @type {HTMLCanvasElement} */(element('map-point-view')),
+  angles:element('map-point-angles'),clock:element('map-point-time'),onError:fail});
+element('map-point-close').addEventListener('click',()=>{pointInspector.close();canvas.focus();});
+element('map-point-restart').addEventListener('click',()=>pointInspector.restart());
+element('map-point-single').addEventListener('click',()=>{
+  if(pointInspector.initial)replayAnglesInSingle(pointInspector.initial[0],pointInspector.initial[1]);
 });
-canvas.addEventListener('pointermove',event=>{
-  if(mode!=='field'||!panLast||!panOrigin||!panDomainDraft)return;
-  const w=canvas.clientWidth,h=canvas.clientHeight;
-  if(w<=0||h<=0)return;
-  const totalDx=event.clientX-panOrigin.x, totalDy=event.clientY-panOrigin.y;
-  if(!panMoved && Math.hypot(totalDx,totalDy)<4) return;
-  panMoved=true;
-  const du=(event.clientX-panLast.x)/w, dv=(event.clientY-panLast.y)/h;
-  panLast={x:event.clientX,y:event.clientY};
-  panDelta={dx:totalDx,dy:totalDy};
-  // Update the draft domain while dragging; resample once on release so full-canvas maps are not rebuilt every move.
-  panDomainDraft=panDomain(panDomainDraft,du,dv);
-  writeFieldDomain(panDomainDraft);
-  const T=physicalDuration(mapSteps,mapDtDenom);
-  fieldView.draw(fieldRun==='map'?null:fieldColours,ensemble.width,ensemble.height,panDomainDraft,
-    `${ensemble.width}×${ensemble.height} · release to resample`,
-    {isPreview:true,previewBadge:'PREVIEW · PAN',panDelta,detailLine:fieldRun==='map'?`${MAP_METRICS[mapMetric].shortLabel} · N=${mapSteps} · Δt=${formatDt(mapDtDenom)} · T=${T.toFixed(3)} s`:undefined});
-});
-function endPan(event) {
-  const wasMoved=panMoved, draft=panDomainDraft;
-  if(panLast&&canvas.hasPointerCapture?.(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
-  panLast=null; panOrigin=null; panDomainDraft=null; panMoved=false; panDelta=null;
-  canvas.classList.remove('is-panning');
-  if(mode!=='field') return;
-  if(wasMoved&&draft) {
-    resampleField(draft);
-  } else if(event.type==='pointerup') {
-    const hit=fieldView.hit(event.clientX,event.clientY);
-    if(hit) {
-      const [theta1,theta2]=pixelInitial(ensemble.width,ensemble.height,hit.row,hit.col,ensemble.domain);
-      fieldProbe={theta1,theta2,u:hit.u,v:hit.v};
-      updateProbeUI();
-      paintField();
-    }
+function choosePoint(x,y) {
+  const hit=fieldView.hit(x,y);if(!hit||!backend)return;
+  const [theta1,theta2]=pixelInitial(ensemble.width,ensemble.height,hit.row,hit.col,ensemble.domain);
+  fieldProbe={theta1,theta2,u:hit.u,v:hit.v};updateProbeUI();
+  if(!matchMedia('(min-width: 768px)').matches) {
+    element('settings').classList.add('hidden');element('nav-scrim').classList.add('hidden');
+    element('settings-toggle').setAttribute('aria-pressed','false');document.body.classList.toggle('panel-open',false);
   }
+  pointInspector.open(backend,theta1,theta2,p);setPaused(reducedMotion);
 }
-canvas.addEventListener('pointerup',endPan);
-canvas.addEventListener('pointercancel',endPan);
+let queuedDomain=null,poseVersion=0,poseReset=false;
+const mapGestures=setupMapGestures(canvas,{
+  enabled:()=>mode==='field'&&!resetPending,domain:()=>ensemble.domain,
+  preview:(domain,transform)=>{
+    panMoved=true;mapRunner.cancel();mapGeneration++;
+    fieldView.draw(fieldRun==='map'?null:fieldColours,ensemble.width,ensemble.height,domain,'Release to resample',
+      {isPreview:true,previewBadge:'PREVIEW',transform});
+  },commit:domain=>{panMoved=false;queuedDomain=domain;},tap:choosePoint
+});
+const singleDrag=setupSingleDrag(canvas,{
+  enabled:()=>mode==='single'&&!grow&&!resetPending&&!failed,pose:()=>({states,p}),
+  edit:(a,b)=>{
+    setPaused(true);poseVersion++;stepPending=false;
+    states=new Float32Array([a,b,0,0,a+.0001,b,0,0]);singleInitial=[a,b];
+    time=0;steps=0;accumulator=0;view.clear();poseReset=true;
+    input('angle1').value=String(wrap180(a/DEG));input('angle2').value=String(wrap180(b/DEG));
+    view.draw(states,p,input('trails').checked,input('compare').checked,false);
+  }
+});
+function cancelInteractions(){mapGestures.cancel();singleDrag.cancel();panMoved=false;queuedDomain=null;}
+globalThis.addEventListener?.('resize',()=>{cancelInteractions();if(mode==='field')queuedDomain={...ensemble.domain};});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'){pointInspector.close();const interrupted=panMoved;cancelInteractions();if(interrupted&&mode==='field')queuedDomain={...ensemble.domain};}});
 function updateMapProgress() {
   const T=physicalDuration(mapRunner.target,mapRunner.dtDenom);
   const dtLabel=formatDt(mapRunner.dtDenom);
@@ -560,6 +555,7 @@ async function frame(now) {
   requestAnimationFrame(frame);
   const elapsed=last?(now-last)/1000:0;last=now;
   if(!paused && !document.hidden) accumulator+=elapsed*number('speed');
+  pointInspector.tick(elapsed,paused||document.hidden,number('speed'));
   if(mode==='story') {
     if(!paused&&!document.hidden)story.elapsed=Math.min(STORY_DURATION,story.elapsed+Math.min(.1,elapsed));
     if(storyFrame(story.elapsed,reducedMotion).stage===story.stage)try {paintStory();}catch(error){fail(error);return;}
@@ -567,6 +563,8 @@ async function frame(now) {
   if(!busy && backend) {
     busy=true;
     try {
+      if(queuedDomain&&!resetPending){const domain=queuedDomain;queuedDomain=null;resampleField(domain);}
+      if(poseReset){backend.reset(states[0],states[1]);poseReset=false;}
       if(resetPending) {
         if(!pendingConfig)restart();
         const config=pendingConfig;
@@ -585,7 +583,7 @@ async function frame(now) {
       if(mode==='story'){await advanceStory();return;}
       if(mode==='field') {
         if(fieldRun==='map') {
-          if(!mapRunner.complete&&!paused&&!document.hidden&&!panMoved) {
+          if(!mapRunner.complete&&!document.hidden&&!panMoved) {
             const gen=mapGeneration;
             const dt=1/mapRunner.dtDenom;
             const colourMode=MAP_METRICS[mapMetric].mode;
@@ -611,7 +609,7 @@ async function frame(now) {
           if(resetPending)return;
           if(!panMoved) paintField();
           const T=physicalDuration(mapRunner.target,mapRunner.dtDenom);
-          const stateTag=mapRunner.complete?'complete':paused?'paused':mapRunner.phase==='preview'?'preview ¼×':`preview ${Math.round(mapRunner.progress*100)}%`;
+          const stateTag=mapRunner.complete?'complete':mapRunner.phase==='preview'?'preview ¼×':`preview ${Math.round(mapRunner.progress*100)}%`;
           status.textContent=`WebGPU · ${ensemble.width}×${ensemble.height} pixels · ${MAP_METRICS[mapMetric].shortLabel} · N = ${mapRunner.target} · Δt = ${formatDt(mapRunner.dtDenom)} · T = ${T.toFixed(3)} s · ${stateTag}`;
           return;
         }
@@ -627,11 +625,14 @@ async function frame(now) {
       const count=stepPending?1:paused?0:Math.min(32,Math.floor(accumulator/DT));
       if(stepPending) stepPending=false;else if(!paused) accumulator-=count*DT;
       if(count>0) {
+        const version=poseVersion;let nextStates;
         if(mode==='single' && grow && time<OPENING_DURATION && p.l2>0) {
           const start=time;
-          if(start+count*DT<=INTRO_DURATION)states=await backend.advance(count,{...p,l2:0});
-          else states=await backend.advanceVarying(count,i=>({...p,l2:openingLength(start+i*DT,p.l2)}));
-        } else { states=await backend.advance(count,p); }
+          if(start+count*DT<=INTRO_DURATION)nextStates=await backend.advance(count,{...p,l2:0});
+          else nextStates=await backend.advanceVarying(count,i=>({...p,l2:openingLength(start+i*DT,p.l2)}));
+        } else { nextStates=await backend.advance(count,p); }
+        if(version!==poseVersion||resetPending)return;
+        states=nextStates;
         steps+=count;time=steps*DT;
       }
       if(resetPending)return;
@@ -664,4 +665,4 @@ GPUBackend.create().then(gpu=>{
   /** @type {HTMLButtonElement} */(element('play-story')).disabled=false;
   requestAnimationFrame(frame);
 }).catch(fail);
-view.draw(states,{...p,l2:0},false,false,false);
+view.draw(states,p,false,false,false);

@@ -176,7 +176,9 @@ test('shareable URL hash encodes, decodes, validates, and rejects malformed inpu
   assert.ok(hash.startsWith('#'));
   const decoded = decodeShareHash(hash);
   assert.ok(decoded && decoded.ok);
-  assert.deepEqual(decoded.state, sample);
+  assert.deepEqual(decoded.state, {...sample,steps:1000});
+  const legacy=decodeShareHash(hash.replace('n=1000','n=4000'));
+  assert.ok(legacy&&legacy.ok);assert.equal(legacy.state.steps,1000);assert.match(legacy.notice,/normalized/);
   assert.equal(decodeShareHash(''), null);
   assert.equal(decodeShareHash('#unrelated'), null);
   const badMetric = decodeShareHash('#v=1&mode=field&run=map&metric=bogus');
@@ -206,7 +208,7 @@ test('BookmarkStore exposes curated regions, persists user bookmarks, and surviv
 
   const reloaded = new BookmarkStore(storage);
   assert.equal(reloaded.list().saved.length, 1);
-  assert.equal(reloaded.find(saved.bookmark.id)?.steps, 2000);
+  assert.equal(reloaded.find(saved.bookmark.id)?.steps, 1000);
   assert.equal(reloaded.remove('builtin:full').removed, false);
   assert.equal(reloaded.remove(saved.bookmark.id).removed, true);
   assert.equal(reloaded.list().saved.length, 0);

@@ -26,7 +26,7 @@ export function encodeShareHash(state) {
     params.set('run', state.fieldRun);
     if (state.fieldRun === 'map') {
       params.set('metric', state.metric);
-      params.set('n', String(Math.round(state.steps)));
+      params.set('n', String(DEFAULT_MAP_STEPS));
       params.set('dt', String(state.dtDenom));
     }
   }
@@ -52,7 +52,7 @@ function readRange(raw, min, max, fallback) {
 /** Parse and validate a URL hash produced by `encodeShareHash`.
  * Returns `null` when no hash is present.
  * @param {string} hash
- * @returns {null | {ok:true,state:ShareState} | {ok:false,error:string}} */
+ * @returns {null | {ok:true,state:ShareState,notice?:string} | {ok:false,error:string}} */
 export function decodeShareHash(hash) {
   const trimmed = (hash || '').replace(/^#/, '').trim();
   if (!trimmed) return null;
@@ -93,11 +93,12 @@ export function decodeShareHash(hash) {
   }
   return {
     ok: true,
+    notice:steps!==DEFAULT_MAP_STEPS?'Legacy map normalized to 1,000 steps.':'',
     state: {
       mode: modeRaw,
       fieldRun: runRaw,
       metric: metricRaw,
-      steps,
+      steps:DEFAULT_MAP_STEPS,
       dtDenom,
       domain: { center1: wrap180(center1), center2: wrap180(center2), span1, span2 },
       p: { l1, l2, m1, m2 }

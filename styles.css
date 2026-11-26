@@ -70,3 +70,14 @@ body.panel-open .story-mode #view-status { visibility: visible; }
   .caption { left: 1rem; right: 1rem; bottom: calc(8rem + env(safe-area-inset-bottom)); max-width: none; }
   body.panel-open #view-status { visibility: hidden; }
 }
+
+#map-inspector { left: auto; right: max(1rem, env(safe-area-inset-right)); width: 20rem; z-index: 3; }
+#map-point-view { width: 100%; height: 220px; }
+.field-mode #view { cursor: grab; }
+#view.is-panning { cursor: grabbing; }
+@media (max-width: 767.98px) {
+  #map-inspector { top: auto; left: .5rem; right: .5rem; bottom: calc(6.5rem + env(safe-area-inset-bottom)); width: auto; max-height: calc(100dvh - 7.5rem); z-index: 8; }
+  #map-point-view { height: 150px; }
+}
+
+.field-mode #view-status { background: var(--bg-raised); border-radius: var(--radius-sm); padding: .35rem .5rem; }

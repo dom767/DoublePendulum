@@ -77,11 +77,18 @@ try {
   await gpu.advanceMetricInPlace(MAP_STEPS,defaults,'sensitivity',DT,0);
   const sensCols=await gpu.readColours(MAP_METRICS.sensitivity.mode,MAP_STEPS);
   assert(sensCols.length===8*8*4,'Sensitivity GPU colour readback');
+  // A point preview shares pipelines/device, but never map state or readback buffers.
+  const point=gpu.fork();point.reset(1.1,1.2);
+  const beforePreview=(await gpu.readColours(MAP_METRICS.sensitivity.mode,MAP_STEPS)).slice();
+  await point.advance(480,defaults);
+  const afterPreview=await gpu.readColours(MAP_METRICS.sensitivity.mode,MAP_STEPS);
+  assert(afterPreview.every((value,i)=>value===beforePreview[i]),'Point preview leaves static map buffers unchanged');
+  point.destroy();
   const pixelStart=performance.now();
   gpu.resetStates(rect.initial);
   await gpu.advanceInPlace(32,defaults);
   await gpu.readColours(0,MAP_STEPS);
   const pixelMs=performance.now()-pixelStart;
-  output.textContent=`PASS: GPU agreement ${error.toExponential(3)} rad or rad/s; 120 s max energy drift ${max.toExponential(3)} J; equilibrium, restart, zero length, growth; all 36 grid cells match isolated runs; frame grouping and retained initial conditions; 160×160 field (32 steps plus readback: ${denseMs.toFixed(1)} ms); 64×48 map ${MAP_STEPS} steps, tile-order match, first-flip, sensitivity, and 1/960 s candidate-region check (32-step colour sample: ${pixelMs.toFixed(1)} ms). Timings exclude full-canvas drawing and are not a recording frame-rate benchmark.`;
+  output.textContent=`PASS: GPU agreement ${error.toExponential(3)} rad or rad/s; 120 s max energy drift ${max.toExponential(3)} J; equilibrium, restart, zero length, growth; all 36 grid cells match isolated runs; frame grouping and retained initial conditions; 160×160 field (32 steps plus readback: ${denseMs.toFixed(1)} ms); 64×48 map ${MAP_STEPS} steps, tile-order match, isolated point preview, first-flip, sensitivity, and 1/960 s candidate-region check (32-step colour sample: ${pixelMs.toFixed(1)} ms). Timings exclude full-canvas drawing and are not a recording frame-rate benchmark.`;
   gpu.device.destroy();
 } catch(error) {output.textContent=`FAIL: ${error instanceof Error?error.message:String(error)}`;}

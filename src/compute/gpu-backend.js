@@ -73,6 +73,10 @@ export class GPUBackend {
       this.rebuildColourBind();
     }
   }
+  fork() { return new GPUBackend(this.device,this.pipeline,this.colourPipeline,this.flipPipeline); }
+  destroy() {
+    for(const buffer of [this.state,this.read,this.colour,this.colourRead,this.flip,this.twin,this.params,this.colourParams,this.dummyFlip,this.dummyTwin])buffer?.destroy();
+  }
   static async create() {
     if (!navigator.gpu) throw new Error('WebGPU is required. Open localhost in a recent Chrome or Edge with hardware acceleration enabled.');
     const adapter=await navigator.gpu.requestAdapter();

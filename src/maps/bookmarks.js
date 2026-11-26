@@ -34,7 +34,7 @@ export const BUILTIN_BOOKMARKS = Object.freeze([
   Object.freeze({
     id: 'builtin:low-energy',
     name: 'Low-energy basin (candidate regular)',
-    note: 'Near downward equilibrium where energy stays below the flip threshold; check at smaller Δt and larger N.',
+    note: 'Near downward equilibrium where energy stays below the flip threshold; check at smaller Δt at the fixed 1,000 steps.',
     builtin: true,
     domain: { center1: 0, center2: 0, span1: 120, span2: 120 },
     steps: DEFAULT_MAP_STEPS,
@@ -77,11 +77,11 @@ export const BUILTIN_BOOKMARKS = Object.freeze([
   }),
   Object.freeze({
     id: 'builtin:refinement',
-    name: 'Refinement check · ½× Δt, 2× T',
-    note: 'Low-energy candidate region checked at Δt = 1/960 s and N = 4000 (T ≈ 4.167 s).',
+    name: 'Refinement check at half timestep',
+    note: 'Low-energy candidate region at 1/960 s for 1000 steps (T = 1.042 s).',
     builtin: true,
     domain: { center1: 0, center2: 0, span1: 120, span2: 120 },
-    steps: 4000,
+    steps: DEFAULT_MAP_STEPS,
     dtDenom: 960,
     metric: 'first-flip',
     p: EQUAL_P
@@ -107,7 +107,8 @@ function normaliseSaved(raw) {
     name: raw.name.trim().slice(0, 60),
     builtin: false,
     domain: { center1: wrap180(d.center1), center2: wrap180(d.center2), span1: d.span1, span2: d.span2 },
-    steps,
+    steps: DEFAULT_MAP_STEPS,
+    note:steps!==DEFAULT_MAP_STEPS?'Legacy bookmark normalized to 1,000 steps.':raw.note,
     dtDenom: raw.dtDenom,
     metric: raw.metric,
     p: { l1: p.l1, l2: p.l2, m1: p.m1, m2: p.m2 }

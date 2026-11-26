@@ -5,10 +5,11 @@ export function element(id) {
   return /** @type {T} */ (el);
 }
 
-export function setupChrome() {
+export function setupChrome(onSettingsOpen=()=>{}) {
   const desktop=matchMedia('(min-width: 768px)');
   const panel=element('settings'), toggle=element('settings-toggle'), scrim=element('nav-scrim');
   function open(value) {
+    if(value)onSettingsOpen();
     panel.classList.toggle('hidden',!value); toggle.setAttribute('aria-pressed',String(value));
     scrim.classList.toggle('hidden', !value || desktop.matches); document.body.classList.toggle('panel-open',value);
   }

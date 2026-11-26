@@ -21,6 +21,7 @@
     <p>Session settings · changes restart the experiment. Reload restores defaults.</p>
     <form id="parameters">
       <div id="single-controls">
+      <p>Drag either node to set its angle. Editing pauses playback; press Play to resume. Numeric angles below provide the keyboard alternative.</p>
       <label>Primary angle (°)<input id="angle1" type="number" min="-180" max="180" step="any" value="110" required></label>
       <label>Secondary angle (°)<input id="angle2" type="number" min="-180" max="180" step="any" value="100" required></label>
       </div>
@@ -32,30 +33,30 @@
         <p>Cell-centre samples. θ₁ increases rightward; θ₂ increases upward. Grid mode always uses fixed lengths.</p>
       </div>
       <div id="field-controls" class="hidden">
-        <label>Field run<select id="field-run"><option value="animate">Live animation</option><option value="map">Fixed-duration map</option></select></label>
+        <label>Map mode<select id="field-run"><option value="animate">Animate</option><option value="map">Static</option></select></label>
         <div id="map-controls" class="sub-group hidden">
           <label>Map metric<select id="map-metric"><option value="final-angle">Final angles (θ₁, θ₂)</option><option value="first-flip">First flip time</option><option value="sensitivity">Nearby divergence (δθ)</option></select></label>
-          <div class="pair"><label>Steps N<input id="map-steps" type="number" min="10" max="100000" step="10" value="1000" required></label><label>Timestep Δt<select id="map-dt"><option value="480" selected>1/480 s</option><option value="960">1/960 s (½×)</option><option value="1920">1/1920 s (¼×)</option></select></label></div>
+          <div class="pair"><label>Fixed steps<input id="map-steps" type="number" value="1000" readonly></label><label>Timestep Δt<select id="map-dt"><option value="480" selected>1/480 s</option><option value="960">1/960 s (½×)</option><option value="1920">1/1920 s (¼×)</option></select></label></div>
           <p id="map-duration" class="mono-note">T = N·Δt = 2.083 s</p>
           <label class="check"><input id="map-preview" type="checkbox" checked> Coarse preview before full map</label>
-          <p class="hint">Metric and preview apply immediately. Steps N, Δt, domain, lengths and masses apply with Apply and restart.</p>
+          <p class="hint">Metric and preview apply immediately. Δt, domain, lengths and masses apply with Apply and restart.</p>
         </div>
         <label>Starting domain<select id="field-domain-preset"><option value="full">Full angle domain</option><option value="neighbourhood">Neighbourhood · 20°</option><option value="nearby">Nearly identical · 0.02°</option><option value="custom">Custom domain</option></select></label>
         <div class="pair"><label>θ₁ centre (°)<input id="field-center1" type="number" min="-180" max="180" step="any" value="0" required></label><label>θ₂ centre (°)<input id="field-center2" type="number" min="-180" max="180" step="any" value="0" required></label></div>
         <div class="pair"><label>θ₁ span (°)<input id="field-span1" type="number" min="0.0001" max="360" step="any" value="360" required></label><label>θ₂ span (°)<input id="field-span2" type="number" min="0.0001" max="360" step="any" value="360" required></label></div>
-        <p>One simulation per CSS pixel of the full view canvas. Wheel zooms at the cursor; drag pans. Zoom and pan resample and recompute rather than magnifying a finished bitmap. Fixed lengths only.</p>
+        <p>One simulation per CSS pixel of the full view canvas. Wheel zooms at the cursor; drag pans; two fingers pinch and pan. Tap a point for an animated preview. Zoom and pan resample and recompute rather than magnifying a finished bitmap. Fixed lengths only.</p>
       </div>
       <div class="pair"><label>Length 1 (m)<input id="length1" type="number" min="0.2" max="3" step="0.1" value="1" required></label><label>Length 2 (m)<input id="length2" type="number" min="0" max="3" step="0.1" value="1" required></label></div>
       <div class="pair"><label>Mass 1 (kg)<input id="mass1" type="number" min="0.2" max="5" step="0.1" value="1" required></label><label>Mass 2 (kg)<input id="mass2" type="number" min="0.2" max="5" step="0.1" value="1" required></label></div>
-      <div id="opening-controls"><label>Opening scene<select id="opening"><option value="grow">Single arm · 10 s, then grow · 8 s</option><option value="fixed">Fixed lengths · energy conserving</option></select></label>
+      <div id="opening-controls"><label>Opening scene<select id="opening"><option value="grow">Single arm · 10 s, then grow · 8 s</option><option value="fixed" selected>Fixed lengths · energy conserving</option></select></label>
       <p class="hint">Growth is a changing-length illustration using instantaneous fixed-length equations, not a model of a telescoping rod. The first 5 cm are regularised.</p></div>
       <button type="submit" class="primary">Apply and restart</button>
       <button type="button" id="defaults">Restore defaults</button>
     </form>
     <label>Playback speed<select id="speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
-    <label>Single → grid transition<select id="grid-transition"><option value="story">Guided story · 165 seconds</option><option value="instant">Instant switch</option></select></label>
-    <p>Session preference. Guided mode shows four nearby starts, then fresh full-domain experiments at 10 × 10, 40 × 40 and 160 × 160. Each stage pauses, frames, resets and runs. Speed controls physics; chapter timing stays paced. Reduced motion uses camera cuts and starts paused.</p>
-    <button id="play-story" type="button" disabled>Play grid story</button>
+        <button id="restart" aria-label="Restart experiment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8M6 9v12h12V9M10 21v-7h4v7"/></svg><span>Restart</span></button>
+    <button id="step" aria-label="Pause and advance one integration step" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 12 8-12 8zM20 4v16"/></svg><span>Step</span></button>
+<button id="play-story" type="button" disabled>Play grid story</button>
     <div id="single-display"><label class="check"><input id="trails" type="checkbox" checked> Show trails</label>
     <label class="check"><input id="compare" type="checkbox"> Nearby trajectory (+0.0001 rad)</label></div>
     <div id="grid-display" class="hidden">
@@ -99,14 +100,19 @@
     <div class="story-footer"><span id="story-progress"></span><button id="replay-story">Replay</button><button id="leave-story">Explore grid</button></div>
   </section>
   <nav id="app-nav" aria-label="Simulation controls">
-    <button id="restart" aria-label="Home: restart experiment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8M6 9v12h12V9M10 21v-7h4v7"/></svg><span>Home</span></button>
+
     <button id="settings-toggle" aria-label="Toggle settings" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16M8 3v6M16 9v6M10 15v6"/></svg><span>Settings</span></button>
     <button id="fullscreen" aria-label="Toggle fullscreen" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M8 21H3v-5"/></svg><span id="full-label">Full</span></button>
+    <button id="shot" aria-label="Save canvas screenshot"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18v15H3zM8 6l2-3h4l2 3"/><circle cx="12" cy="13" r="4"/></svg><span>Shot</span></button>
     <button id="pause" aria-label="Pause simulation" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v16M16 4v16"/></svg><span id="pause-label">Pause</span></button>
-    <button id="step" aria-label="Pause and advance one integration step" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 12 8-12 8zM20 4v16"/></svg><span>Step</span></button>
-    <button id="grid-toggle" aria-label="Switch between single pendulum and grid" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/></svg><span id="grid-label">Grid</span></button>
-    <button id="field-toggle" aria-label="Switch to full-canvas pixel field" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h4v4H4zM10 4h4v4h-4zM16 4h4v4h-4zM4 10h4v4H4zM10 10h4v4h-4zM16 10h4v4h-4zM4 16h4v4H4zM10 16h4v4h-4zM16 16h4v4h-4z"/></svg><span id="field-label">Field</span></button>
+
+    <button id="single-toggle" aria-label="Single pendulum" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 6 8-10 8"/></svg><span>Single</span></button>
+    <button id="grid-toggle" aria-label="Show pendulum grid" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h18v18H3zM9 3v18M15 3v18M3 9h18M3 15h18"/></svg><span id="grid-label">Grid</span></button>
+    <button id="field-toggle" aria-label="Show angle map" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h4v4H4zM10 4h4v4h-4zM16 4h4v4h-4zM4 10h4v4H4zM10 10h4v4h-4zM16 10h4v4h-4zM4 16h4v4H4zM10 16h4v4h-4zM16 16h4v4h-4z"/></svg><span id="field-label">Map</span></button>
   </nav>
+  <aside id="map-inspector" class="hidden" aria-label="Selected map pendulum">
+<h2>Selected starting point</h2><p id="map-point-angles"></p><canvas id="map-point-view" aria-label="Selected pendulum animation"></canvas><p id="map-point-time"></p><button id="map-point-restart">Restart preview</button><button id="map-point-single">Open in Single</button><button id="map-point-close">Close</button>
+</aside>
   <dialog id="inspector" aria-labelledby="inspector-title">
     <h2 id="inspector-title">Selected experiment</h2>
     <p id="cell-details"></p>

@@ -66,7 +66,7 @@ export class FieldView {
    * @param {number} width @param {number} height
    * @param {import('../physics/ensemble.js').AngleDomain} domain
    * @param {string} caption
-   * @param {{isPreview?:boolean,previewBadge?:string,detailLine?:string,panDelta?:{dx:number,dy:number}|null,probe?:{u:number,v:number}|null}} [options] */
+   * @param {{isPreview?:boolean,previewBadge?:string,detailLine?:string,transform?:{x:number,y:number,sx:number,sy:number},panDelta?:{dx:number,dy:number}|null,probe?:{u:number,v:number}|null}} [options] */
   draw(colours,width,height,domain,caption,options={}) {
     const c=this.canvas,ctx=this.ctx,w=c.clientWidth,h=c.clientHeight,dpr=Math.min(devicePixelRatio,2);
     if(!ctx||width<1||height<1) return;
@@ -76,6 +76,7 @@ export class FieldView {
     const dx=options.panDelta?.dx??0, dy=options.panDelta?.dy??0;
     ctx.save();
     if(dx||dy) ctx.translate(dx,dy);
+    if(options.transform){const t=options.transform;ctx.translate(t.x,t.y);ctx.scale(t.sx,t.sy);}
     if(colours&&colours.length>=width*height*4) {
       if(!this.image||this.image.width!==width||this.image.height!==height) this.image=new ImageData(width,height);
       this.image.data.set(colours.subarray(0,width*height*4));
