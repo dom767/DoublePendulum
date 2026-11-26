@@ -4,13 +4,15 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 // Boot complete browser modules with the declared HTML controls, without a DOM framework.
-async function boot(supported=false,desktop=false) {
+async function boot(supported=false,desktop=false,options={}) {
   const html=readFileSync('index.html','utf8'), nodes=new Map();
   for(const match of html.matchAll(/\bid="([^"]+)"[^>]*>/g)) {
     const listeners={};
     const classes=new Set();
+    const children=[];
     const node={value:match[0].match(/\bvalue="([^"]*)"/)?.[1]??'',checked:match[0].includes('checked'),disabled:false,
-      textContent:'',style:{},width:0,height:0,clientWidth:1000,clientHeight:800,
+      textContent:'',style:{},width:0,height:0,clientWidth:1000,clientHeight:800,children,
+      appendChild(child){children.push(child);return child;},
       classList:{toggle:(x,force)=>{if(force??!classes.has(x))classes.add(x);else classes.delete(x);},contains:x=>classes.has(x),add:x=>classes.add(x),remove:x=>classes.delete(x)},
       addEventListener:(type,fn)=>{listeners[type]=fn;},setAttribute(){},focus(){},reportValidity:()=>true,reset(){},
       open:false,showModal(){this.open=true;},close(){this.open=false;listeners.close?.();},
@@ -22,19 +24,28 @@ async function boot(supported=false,desktop=false) {
   nodes.get('speed').value='1';nodes.get('opening').value='grow';
   nodes.get('grid-size').value='10';nodes.get('colour-source').value='current';
   nodes.get('grid-transition').value='instant';nodes.get('field-run').value='animate';
-  const frames=[],calls=[];
+  nodes.get('map-metric').value='final-angle';nodes.get('map-dt').value='480';
+  nodes.get('domain-preset').value='full';nodes.get('field-domain-preset').value='full';
+  const frames=[],calls=[],copied=[];
+  const storageMap=new Map();
   let state=new Float32Array(8);
   const gpu={device:{lost:new Promise(()=>{}),addEventListener(){}},
     reset(a,b){state=new Float32Array([a,b,0,0,a+.0001,b,0,0]);calls.push({kind:'reset',state:state.slice()});},
     resetStates(initial){state=initial.slice();calls.push({kind:'grid',state:state.slice()});},
+    resetMetricStates(initial,metric){state=initial.slice();calls.push({kind:'grid',state:state.slice(),metric});},
     async advance(count,p){calls.push({kind:'advance',count,p});return state.slice();},
-    async advanceInPlace(count,p){calls.push({kind:'inplace',count,p});},
-    async readColours(){calls.push({kind:'colours'});return new Uint8ClampedArray(state.length);},
+    async advanceInPlace(count,p,dt){calls.push({kind:'inplace',count,p,dt});},
+    async advanceMetricInPlace(count,p,metric,dt,offset){calls.push({kind:'inplace',count,p,metric,dt,offset});},
+    async readColours(mode=0,target=1000){calls.push({kind:'colours',mode,target});return new Uint8ClampedArray(state.length);},
     async advanceVarying(count,paramsAt){return this.advance(count,paramsAt(0));}};
-  const context=vm.createContext({console,Float32Array,Uint8ClampedArray,Math,Number,Error,String,devicePixelRatio:1,navigator:{},
+  const location={origin:'http://127.0.0.1:7100',pathname:'/',search:'',hash:options.hash||''};
+  const context=vm.createContext({console,Float32Array,Uint8ClampedArray,Uint32Array,Math,Number,Error,String,Array,Object,JSON,Date,URLSearchParams,devicePixelRatio:1,
+    location,history:{replaceState(_s,_t,url){const i=String(url).indexOf('#');location.hash=i>=0?String(url).slice(i):'';}},
+    localStorage:{getItem:k=>storageMap.get(k)??null,setItem:(k,v)=>{storageMap.set(k,String(v));}},
+    navigator:{clipboard:{async writeText(text){copied.push(text);}}},
     ImageData:class ImageData{constructor(data,width,height){if(typeof data==='number'){this.width=data;this.height=width;this.data=new Uint8ClampedArray(data*width*4);}else{this.data=data;this.width=width;this.height=height??data.length/width/4;}}},
     document:{getElementById:id=>{assert.ok(nodes.has(id),`HTML declares #${id}`);return nodes.get(id);},
-      createElement:()=>({width:0,height:0,getContext:()=>new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4),width:w,height:h}),putImageData(){},drawImage(){},setTransform(){},clearRect(){},fillRect(){},fillText(){},save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},stroke(){},arc(){},fill(){},translate(){},rotate(){}},{get:(t,prop)=>prop in t?t[prop]:()=>{}})}),
+      createElement:tag=>tag==='option'?{value:'',textContent:''}:({width:0,height:0,getContext:()=>new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4),width:w,height:h}),putImageData(){},drawImage(){},setTransform(){},clearRect(){},fillRect(){},fillText(){},measureText:()=>({width:40}),setLineDash(){},strokeRect(){},save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},stroke(){},arc(){},fill(){},translate(){},rotate(){}},{get:(t,prop)=>prop in t?t[prop]:()=>{}})}),
       body:{classList:{toggle(){}}},addEventListener(){}},
     getComputedStyle:()=>({getPropertyValue:()=> 'monospace'}),
     matchMedia:query=>({matches:query==='(min-width: 768px)'&&desktop,addEventListener(){}}),requestAnimationFrame:fn=>frames.push(fn)});
@@ -50,7 +61,7 @@ async function boot(supported=false,desktop=false) {
   }
   const main=await load(new URL('../src/main.js',import.meta.url));await main.evaluate();
   await new Promise(resolve=>setImmediate(resolve));
-  return {nodes,calls,async tick(now){const frame=frames.shift();assert.ok(frame,'Frame is scheduled');await frame(now);}};
+  return {nodes,calls,copied,location,async tick(now){const frame=frames.shift();assert.ok(frame,'Frame is scheduled');await frame(now);}};
 }
 test('UI boots, handles unsupported GPU, and binds restart to valid form settings',async()=>{
   const {nodes}=await boot();
@@ -171,4 +182,48 @@ test('pixel field matches the canvas, animates in place, then maps exactly 1000 
   nodes.get('view').listeners.wheel({preventDefault(){},deltaY:-1,clientX:250,clientY:200});
   await tick(clock+=16);await tick(clock+=16);
   assert.ok(calls.filter(c=>c.kind==='grid').length>=2,'Zoom resamples a new field');
+});
+
+test('milestone 4 map controls: metrics, configurable N/Δt, preview badge, bookmarks, reset view, and share link',async()=>{
+  const {nodes,calls,copied,tick}=await boot(true,true);
+  let clock=100;
+  await tick(clock+=16);
+  // Open curated low-energy candidate regular bookmark (first-flip, 120° span).
+  nodes.get('bookmark-select').value='builtin:low-energy';
+  nodes.get('bookmark-load').listeners.click();
+  await tick(clock+=16);
+  assert.equal(nodes.get('app').classList.contains('field-mode'),true);
+  assert.equal(nodes.get('render-status').classList.contains('is-preview'),true,'Preview is distinctly marked before full map completes');
+  assert.match(nodes.get('render-label').textContent,/Preview/);
+  for(let i=0;i<90;i++) await tick(clock+=16);
+  assert.equal(nodes.get('render-status').classList.contains('is-preview'),false,'Preview flag clears once all full-res tiles complete');
+  assert.match(nodes.get('render-label').textContent,/Complete · N=1000 · Δt=1\/480 s/);
+  assert.ok(calls.some(c=>c.kind==='inplace'&&c.metric==='first-flip'));
+
+  // Change N and Δt and switch to sensitivity metric.
+  nodes.get('map-steps').value='400';
+  nodes.get('map-dt').value='960';
+  nodes.get('map-metric').value='sensitivity';
+  nodes.get('parameters').listeners.submit({preventDefault(){}});
+  await tick(clock+=16);await tick(clock+=16);
+  assert.ok(calls.some(c=>c.kind==='inplace'&&c.metric==='sensitivity'&&Math.abs(c.dt-1/960)<1e-9));
+
+  // Save a custom bookmark, copy share link, then reset view.
+  nodes.get('bookmark-name').value='Candidate island';
+  nodes.get('bookmark-save').listeners.click();
+  assert.match(nodes.get('bookmark-status').textContent,/Candidate island/);
+  await nodes.get('copy-share-link').listeners.click();
+  assert.equal(copied.length,1);
+  assert.match(copied[0],/#.*metric=sensitivity.*n=400.*dt=960/);
+  nodes.get('field-reset-view').listeners.click();
+  assert.equal(nodes.get('field-span1').value,'360');
+
+  // Boot a fresh instance from the copied share link hash.
+  const hash=copied[0].slice(copied[0].indexOf('#'));
+  const shared=await boot(true,true,{hash});
+  await shared.tick(200);
+  assert.equal(shared.nodes.get('app').classList.contains('field-mode'),true);
+  assert.equal(shared.nodes.get('map-metric').value,'sensitivity');
+  assert.equal(shared.nodes.get('map-steps').value,'400');
+  assert.equal(shared.nodes.get('map-dt').value,'960');
 });

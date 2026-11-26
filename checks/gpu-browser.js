@@ -50,17 +50,38 @@ try {
     const initial=cellInitial(dense,index);gpu.reset(initial[0],initial[1]);const isolated=await gpu.advance(32,defaults);
     assert(isolated.slice(0,4).every((x,i)=>x===denseRun[index*4+i]),`Dense cell ${index} matches isolated run`);
   }
-  const {createPixelField, MAP_STEPS}=await import('../src/physics/ensemble.js');
+  const {createPixelField, sampleTile, MAP_STEPS}=await import('../src/physics/ensemble.js');
+  const {MAP_METRICS}=await import('../src/maps/metrics.js');
   const rect=createPixelField(64,48,presets.full);gpu.resetStates(rect.initial);
   await gpu.advanceInPlace(MAP_STEPS,defaults);
-  const colours=await gpu.readColours();
+  const colours=await gpu.readColours(0,MAP_STEPS);
   assert(colours.length===64*48*4,'Rectangular colour readback');
   assert(colours[3]===255&&colours.every((_,i)=>i%4!==3||colours[i]===255),'Opaque GPU colours');
+  // Milestone 4: verify tile-order independence, first-flip, sensitivity, and smaller Δt refinement on GPU.
+  const tileTop=sampleTile(64,48,0,24,presets.full), tileBot=sampleTile(64,48,24,48,presets.full);
+  gpu.resetMetricStates(tileBot,'final-angle');await gpu.advanceMetricInPlace(MAP_STEPS,defaults,'final-angle',DT,0);
+  const botCols=await gpu.readColours(MAP_METRICS['final-angle'].mode,MAP_STEPS);
+  const botOffset=24*64*4;
+  assert(botCols.every((v,i)=>v===colours[botOffset+i]),'Tiled GPU map matches full-field map regardless of tile order');
+  gpu.resetMetricStates(tileTop,'first-flip');await gpu.advanceMetricInPlace(500,defaults,'first-flip',DT,0);await gpu.advanceMetricInPlace(500,defaults,'first-flip',DT,500);
+  const flipCols=await gpu.readColours(MAP_METRICS['first-flip'].mode,MAP_STEPS);
+  assert(flipCols.length===64*24*4,'First-flip GPU colour readback');
+  // Candidate regular check near (0°, 0°) at refined Δt = 1/960 s and longer duration N = 2000.
+  const calmDomain={center1:0,center2:0,span1:20,span2:20};
+  const calm=createPixelField(8,8,calmDomain);
+  gpu.resetMetricStates(calm.initial,'first-flip');
+  await gpu.advanceMetricInPlace(2000,defaults,'first-flip',1/960,0);
+  const calmFlip=await gpu.readColours(MAP_METRICS['first-flip'].mode,2000);
+  assert(calmFlip[0]===20&&calmFlip[1]===24&&calmFlip[2]===36,'Low-energy candidate regular region shows no flip at refined Δt = 1/960 s');
+  gpu.resetMetricStates(calm.initial,'sensitivity');
+  await gpu.advanceMetricInPlace(MAP_STEPS,defaults,'sensitivity',DT,0);
+  const sensCols=await gpu.readColours(MAP_METRICS.sensitivity.mode,MAP_STEPS);
+  assert(sensCols.length===8*8*4,'Sensitivity GPU colour readback');
   const pixelStart=performance.now();
   gpu.resetStates(rect.initial);
   await gpu.advanceInPlace(32,defaults);
-  await gpu.readColours();
+  await gpu.readColours(0,MAP_STEPS);
   const pixelMs=performance.now()-pixelStart;
-  output.textContent=`PASS: GPU agreement ${error.toExponential(3)} rad or rad/s; 120 s max energy drift ${max.toExponential(3)} J; equilibrium, restart, zero length, growth; all 36 grid cells match isolated runs; frame grouping and retained initial conditions; 160×160 field (32 steps plus readback: ${denseMs.toFixed(1)} ms); 64×48 pixel field map ${MAP_STEPS} steps plus colourize (32-step colour sample: ${pixelMs.toFixed(1)} ms). Timings exclude full-canvas drawing and are not a recording frame-rate benchmark.`;
+  output.textContent=`PASS: GPU agreement ${error.toExponential(3)} rad or rad/s; 120 s max energy drift ${max.toExponential(3)} J; equilibrium, restart, zero length, growth; all 36 grid cells match isolated runs; frame grouping and retained initial conditions; 160×160 field (32 steps plus readback: ${denseMs.toFixed(1)} ms); 64×48 map ${MAP_STEPS} steps, tile-order match, first-flip, sensitivity, and 1/960 s candidate-region check (32-step colour sample: ${pixelMs.toFixed(1)} ms). Timings exclude full-canvas drawing and are not a recording frame-rate benchmark.`;
   gpu.device.destroy();
 } catch(error) {output.textContent=`FAIL: ${error instanceof Error?error.message:String(error)}`;}

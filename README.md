@@ -32,7 +32,7 @@ Each cell's background uses its **current** primary and secondary angles through
 
 Tap a cell to inspect its enlarged pendulum, initial conditions, current angles, time and integration count. Alternatively, use the row/column controls and **Inspect selected cell**, or focus the grid and use arrow keys then Enter. The inspection follows the actual GPU cell state while the grid continues running. **Replay in single view** transfers the selected initial angles, uses fixed lengths and restarts at time zero with the same physical parameters. Close/Escape returns to the selection controls. Grid/domain/colour settings are session-only; Restore defaults resets them as well as the single-view preferences, while retaining the current view mode.
 
-## Pixel field — milestone 3
+## Pixel field and fixed-duration maps — milestones 3 & 4
 
 Use **Field** in the bottom navigation for a full-canvas experiment: **one simulation per CSS pixel** of the view, edge to edge. Resolution is taken from the canvas on **Apply and restart** (and again when pan/zoom resamples). The status line reports the true simulation width×height; if the window is later resized, Apply again to match. Fixed lengths only. Cap is 8.3M simulations.
 
@@ -41,9 +41,19 @@ Two field runs (Settings → Field run):
 | Run | Behaviour |
 |---|---|
 | **Live animation** | Every pixel keeps integrating on the GPU. Colours are current angles. Pending steps are never dropped; the status reports catching up when the frame budget is exceeded. |
-| **Map · 1000 steps** | Every pixel receives exactly N = 1000 steps at Δt = 1/480 s (T ≈ 2.083 s). A progress lozenge shows completion. Afterward the finished colour field stays on screen. |
+| **Fixed-duration map** | Cancellable progressive tiled runner: every pixel starts from its sampled initial angles and receives **exactly N steps** at timestep **Δt** (physical duration **T = N·Δt**). Defaults to `N = 1000`, `Δt = 1/480 s` (`T ≈ 2.083 s`). |
 
-**Display density vs angle-domain zoom:** making the window larger adds more simulations (new samples). Wheel-zoom and drag-pan change the angle domain and **resample + recompute**; they never magnify a finished bitmap. Wheel zooms toward the cursor; drag pans (the GPU rebuild runs on release). Domain presets and custom centres/spans match the grid. Colours use the same periodic angle map; they are not a stability metric.
+**Map controls, metrics and previews:**
+
+- **Configurable N and Δt:** Set **Steps N** (10–100,000, default 1000) and **Timestep Δt** (`1/480 s`, `1/960 s`, or `1/1920 s`) to test candidate regular regions at smaller timesteps and longer physical durations. `N`, `Δt`, and `T = N·Δt` are always shown in Settings, the status line, the canvas readout, and the progress lozenge.
+- **Defined metrics** (all computed on WebGPU; apply immediately in map mode):
+  - **Final angles (θ₁, θ₂)** (default): same smooth periodic 2D RGB map as the grid. Colours encode final angles, not stability.
+  - **First flip time**: records the first step at which either arm crosses the upward vertical (`±180° mod 360°`) within `T`. Dark slate marks pixels that did not flip within `T` — these are **finite-time patterns / candidate regular regions**, not a proof of long-term stability.
+  - **Nearby divergence (δθ)**: integrates a second twin trajectory shifted by `Δθ₁ = +0.0001 rad` (matching Single view's nearby comparison) and colours the wrapped angular separation `δθ(T)` on a log scale from `10⁻⁴ rad` to `π√2 rad`. Measures finite-time sensitivity only.
+- **Distinctly marked previews:** On large canvases, a fast coarse ¼-scale preview computes first (configurable via **Coarse preview before full map**, checked by default, session-only) before full-resolution row tiles compute to completion. Both the coarse preview, in-progress full-resolution tiling, and drag-panning show an amber `PREVIEW` badge and dashed viewport border until 100% of full-resolution pixels have received all `N` steps. Stale cancelled jobs never overwrite a newer view.
+- **Display density vs angle-domain zoom:** making the window larger adds more simulations (new samples). Wheel-zoom (cursor-centred), drag-pan (rebuilds on release), and the **Zoom in / Zoom out / Reset view** buttons change the angle domain and **resample + recompute**; they never magnify a finished bitmap. Clicking a pixel without dragging selects its starting `(θ₁, θ₂)` and offers **Replay point in single view**.
+- **Bookmarks & candidate regions:** Curated regions include the full angle domain, a low-energy candidate regular basin, a flip boundary, high-angle filaments, fine-scale divergence, and a `½× Δt, 2× T` refinement check. User-saved bookmarks persist in **this browser only** (`localStorage` key `double-pendulum:bookmarks:v1`, with graceful session-only fallback if storage is unavailable); **Delete** and **Clear saved** manage them. Simulation settings remain session-only unless opened from a bookmark or share link.
+- **Shareable links:** **Copy share link** encodes the active view mode, domain, steps `N`, `Δt`, metric, and physical parameters into the URL hash (`#v=1&…`). Opening a shared link validates and restores that view; **Restore defaults** clears the hash and restores defaults.
 
 GPU colourize avoids reading full state vectors back for painting. Unsupported WebGPU still fails with the same clear status message as the single view.
 
@@ -53,7 +63,7 @@ GPU colourize avoids reading full state vectors back for painting. Unsupported W
 
 With the server running, open `/checks/gpu.html` in a WebGPU browser for real shader compilation, 1-second CPU/GPU agreement (maximum state error <0.002 rad or rad/s), exact replay, equilibrium, zero length, growth finiteness, and 120-second energy drift (<0.02 J). The page reports PASS or FAIL. Growth advances vary length per step on the GPU with a single readback per batch. Long-time CPU/GPU trajectories may differ because of chaos and floating-point precision; short-time agreement and energy checks are the useful comparisons.
 
-The browser checks also run a 6×6 ensemble for 480 steps, compare every cell bit-for-bit against an isolated single-view run, compare one batch with 173+307 steps, time a 160×160 field, and run a 64×48 rectangular pixel-field map through 1000 steps with GPU colourize. Node tests verify axis sampling, periodic colours, domain pan/zoom, map step counts, GPU dispatch/readback sizing through a device stub, and the complete UI switch/step/inspect/replay/field path through a DOM/GPU stub. Stubs do not validate actual GPU execution or browser layout.
+The browser checks also run a 6×6 ensemble for 480 steps, compare every cell bit-for-bit against an isolated single-view run, compare one batch with 173+307 steps, time a 160×160 field, and run a 64×48 rectangular pixel-field map through 1000 steps with GPU colourize, tile-order verification, first-flip and nearby-divergence shaders, and a 1/960 s low-energy candidate-region check. Node tests verify axis sampling, tile-order and zoom-history independence, stale map cancellation, periodic and metric colours, domain pan/zoom, shareable URL hashes, browser bookmark storage, GPU dispatch/readback sizing through a device stub, and the complete UI switch/step/inspect/replay/field/map path through a DOM/GPU stub. Stubs do not validate actual GPU execution or browser layout.
 
 ## Guided transition — one to 25,600
 

@@ -5,7 +5,7 @@
 - [ ] **1 — Single pendulum and GPU physics:** implemented; real-browser/GPU acceptance remains outstanding.
 - [ ] **2 — Visible grid and periodic colour map:** implemented; real-browser/GPU acceptance remains outstanding.
 - [ ] **3 — Pixel field and density transition:** implemented (full-canvas one-sim-per-CSS-pixel live field + 1000-step map with domain pan/zoom); real-browser/GPU and recording-performance acceptance remain outstanding.
-- [ ] **4 — Fixed-duration maps and exploration:** partial: N=1000 final-angle map with pan/zoom/resample shipped in the Field view; bookmarks, shareable state and extra metrics remain outstanding.
+- [ ] **4 — Fixed-duration maps and exploration:** implemented (cancellable tiled progressive runner, configurable N and Δt with T = N·Δt, final-angle / first-flip / nearby-divergence GPU metrics, distinctly marked coarse/tile/pan previews, reset view & zoom controls, curated & browser-saved bookmarks, shareable URL hash, and click-to-replay point probe); real-browser/GPU and visual acceptance remain outstanding.
 - [ ] **5 — Two-minute guided presentation:** partial: revised 165-second staged story implemented; full 120-second edit with maps remains outstanding.
 
 ## Milestone 1 implementation
@@ -32,7 +32,7 @@ Launching Chrome for automated browser verification was blocked by the execution
 - Confirm measured full-canvas live/map performance on the recording machine (Field uses the actual CSS canvas size).
 - Decide whether milestone 4 needs additional metrics after final-angle maps work.
 - Growth is an explicitly labelled pedagogical approximation, not a telescoping-rod dynamics model.
-- Session settings deliberately do not persist; shareable state/bookmarks arrive in milestone 4.
+- Session settings deliberately do not persist; browser-scoped user bookmarks (`localStorage`) and shareable URL hash links are implemented in milestone 4.
 - Direct video export is still out of scope. Guided timeline covers the single-to-dense-grid transition; Field covers per-pixel live and N=1000 map modes.
 - Deployment scripts (Run Local / Deploy Local / Deploy Prod) package to `Export/` and target `https://baffledcat.com/pendulum/`; first production upload is still a human Deploy Prod step. Packaged HTML loads `/consent.js`; a Cookie settings footer link is not in the UI yet. Packaging smoke: `packageBuild` + `npm test` (8 pass) + served `Export/Local` on 7101 with versioned bundles.
 
@@ -77,6 +77,23 @@ Milestone 2 verification: `npm test` passes all 15 tests, including packaging; `
 - [ ] Actual WebGPU full-canvas performance and visual acceptance on the recording browser.
 
 Verification: `npm test` and `npm run check` pass after the field work; source syntax and `git diff --check` pass. No production deployment. Open Field in a WebGPU browser and `/checks/gpu.html` for hardware acceptance.
+
+## Milestone 4 implementation — 2026-11-26
+
+- [x] Cancellable tiled progressive `MapRunner` (`src/maps/runner.js`) with optional coarse ¼-scale preview pass followed by row-aligned tiles; stale generations are discarded before and after every async GPU call and cannot overwrite newer views.
+- [x] Configurable map step count `N` (10–100,000, default 1000) and timestep `Δt` (`1/480 s`, `1/960 s`, `1/1920 s`) with physical duration `T = N·Δt` shown in Settings, the canvas HUD, the progress lozenge, and the status bar.
+- [x] Defined GPU-only map metrics (`src/maps/metrics.js`, `src/compute/flip-shader.js`, `src/compute/colour-shader.js`):
+  - **Final angles (θ₁, θ₂):** existing periodic 2D RGB torus map + 2D legend.
+  - **First flip time:** first step at which either arm crosses the upward vertical (`±π mod 2π`); dark slate marks non-flipping candidate regular regions, with labelled 1D key.
+  - **Nearby divergence (δθ):** integrates a `+0.0001 rad` twin trajectory on the GPU and maps wrapped angular separation on a log scale, with labelled 1D key.
+- [x] Distinctly marked previews: amber `PREVIEW` badge and dashed viewport border during coarse preview, partial tiling, and drag-panning preview; clears only once 100% of full-resolution pixels have received all `N` steps.
+- [x] Pan (with live visual preview offset, resampling on release), cursor-centred wheel zoom, Zoom in / Zoom out / Reset view controls, and click-to-probe starting angles with **Replay point in single view**.
+- [x] Curated bookmarks/candidate regions (including low-energy basin, flip boundary, high-angle filaments, fine-scale divergence, and `½× Δt, 2× T` refinement check) plus browser-scoped user bookmarks (`localStorage` key `double-pendulum:bookmarks:v1`, graceful in-memory fallback) and shareable URL hash state (`src/maps/state.js`).
+- [x] Automated Node tests (`test/map.test.js`, `test/ui-restart.test.js`) verifying tile-order independence, zoom-history independence, stale job cancellation, all-N-step delivery, candidate regular region refinement at `Δt = 1/960 s` and `N = 4000`, GPU metric pipeline/uniform dispatch via stub, shareable hash validation, bookmark persistence/fallback, and full UI flow.
+- [x] Extended `/checks/gpu.html` (`checks/gpu-browser.js`) to verify real-GPU tile-order match, `first-flip` and `sensitivity` shader compilation/execution, and a `1/960 s` low-energy candidate regular check.
+- [ ] Actual WebGPU hardware execution at `/checks/gpu.html` and interactive visual/layout review in a WebGPU browser (desktop and 360px phone).
+
+Verification: all 42 Node tests pass (`npm test`, using directory discovery so Windows and POSIX run identically); `npm run check`, JS syntax checks, packaging (`packageBuild`), and `git diff --check` pass. No production deployment performed.
 
 ## Guided single-to-grid story
 

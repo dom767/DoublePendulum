@@ -32,11 +32,18 @@
         <p>Cell-centre samples. θ₁ increases rightward; θ₂ increases upward. Grid mode always uses fixed lengths.</p>
       </div>
       <div id="field-controls" class="hidden">
-        <label>Field run<select id="field-run"><option value="animate">Live animation</option><option value="map">Map · 1000 steps</option></select></label>
+        <label>Field run<select id="field-run"><option value="animate">Live animation</option><option value="map">Fixed-duration map</option></select></label>
+        <div id="map-controls" class="sub-group hidden">
+          <label>Map metric<select id="map-metric"><option value="final-angle">Final angles (θ₁, θ₂)</option><option value="first-flip">First flip time</option><option value="sensitivity">Nearby divergence (δθ)</option></select></label>
+          <div class="pair"><label>Steps N<input id="map-steps" type="number" min="10" max="100000" step="10" value="1000" required></label><label>Timestep Δt<select id="map-dt"><option value="480" selected>1/480 s</option><option value="960">1/960 s (½×)</option><option value="1920">1/1920 s (¼×)</option></select></label></div>
+          <p id="map-duration" class="mono-note">T = N·Δt = 2.083 s</p>
+          <label class="check"><input id="map-preview" type="checkbox" checked> Coarse preview before full map</label>
+          <p class="hint">Metric and preview apply immediately. Steps N, Δt, domain, lengths and masses apply with Apply and restart.</p>
+        </div>
         <label>Starting domain<select id="field-domain-preset"><option value="full">Full angle domain</option><option value="neighbourhood">Neighbourhood · 20°</option><option value="nearby">Nearly identical · 0.02°</option><option value="custom">Custom domain</option></select></label>
         <div class="pair"><label>θ₁ centre (°)<input id="field-center1" type="number" min="-180" max="180" step="any" value="0" required></label><label>θ₂ centre (°)<input id="field-center2" type="number" min="-180" max="180" step="any" value="0" required></label></div>
         <div class="pair"><label>θ₁ span (°)<input id="field-span1" type="number" min="0.0001" max="360" step="any" value="360" required></label><label>θ₂ span (°)<input id="field-span2" type="number" min="0.0001" max="360" step="any" value="360" required></label></div>
-        <p>One simulation per CSS pixel of the full view canvas. Resolution matches the canvas on Apply. Live mode keeps integrating; map mode runs exactly 1000 steps (T = 1000/480 s), then you can pan and zoom — zoom resamples and recomputes, it does not magnify a bitmap. Wheel zooms at the cursor; drag pans. Fixed lengths only.</p>
+        <p>One simulation per CSS pixel of the full view canvas. Wheel zooms at the cursor; drag pans. Zoom and pan resample and recompute rather than magnifying a finished bitmap. Fixed lengths only.</p>
       </div>
       <div class="pair"><label>Length 1 (m)<input id="length1" type="number" min="0.2" max="3" step="0.1" value="1" required></label><label>Length 2 (m)<input id="length2" type="number" min="0" max="3" step="0.1" value="1" required></label></div>
       <div class="pair"><label>Mass 1 (kg)<input id="mass1" type="number" min="0.2" max="5" step="0.1" value="1" required></label><label>Mass 2 (kg)<input id="mass2" type="number" min="0.2" max="5" step="0.1" value="1" required></label></div>
@@ -62,9 +69,24 @@
       <p>Tap a cell, or use the row and column controls. Arrow keys move the selection when the grid has focus; Enter inspects it.</p>
     </div>
     <div id="field-display" class="hidden">
-      <h2>Angle colour key</h2>
-      <p>Same periodic map as the grid. Colours are current (or final map) angles, not stability.</p>
-      <canvas id="field-colour-legend" width="120" height="120" role="img" aria-label="Two-dimensional periodic colour key for the pixel field"></canvas>
+      <div class="action-row"><button id="field-zoom-in" type="button">Zoom in</button><button id="field-zoom-out" type="button">Zoom out</button><button id="field-reset-view" type="button">Reset view</button></div>
+      <h2 id="field-legend-title">Angle colour key</h2>
+      <p id="field-legend-copy">Same periodic map as the grid. Colours encode angles, not stability.</p>
+      <canvas id="field-colour-legend" width="160" height="120" role="img" aria-label="Colour key for the active pixel field or fixed-duration map metric"></canvas>
+      <div id="field-probe" class="sub-group hidden">
+        <p id="field-probe-text" class="mono-note"></p>
+        <button id="field-replay-point" type="button">Replay point in single view</button>
+      </div>
+      <h2>Bookmarks &amp; regions</h2>
+      <label>Region or bookmark<select id="bookmark-select"><optgroup id="builtin-bookmarks-group" label="Curated regions"></optgroup><optgroup id="saved-bookmarks-group" label="Saved in this browser"></optgroup></select></label>
+      <div class="pair"><button id="bookmark-load" type="button">Open region</button><button id="bookmark-delete" type="button" disabled>Delete</button></div>
+      <label>Save current map<input id="bookmark-name" type="text" placeholder="Bookmark name" maxlength="60"></label>
+      <div class="pair"><button id="bookmark-save" type="button">Save bookmark</button><button id="bookmark-clear" type="button">Clear saved</button></div>
+      <p class="hint">Saved bookmarks persist in this browser only. Simulation settings remain session-only unless opened from a bookmark or share link.</p>
+      <p id="bookmark-status" class="mono-note" role="status"></p>
+      <h2>Share view</h2>
+      <button id="copy-share-link" type="button">Copy share link</button>
+      <p id="share-status" class="mono-note" role="status"></p>
       <p id="field-resolution">Simulation resolution matches the view canvas on Apply.</p>
     </div>
     <p>No friction. Zero initial velocities. Gravity 9.81 m/s². All integration runs on WebGPU.</p>
