@@ -81,3 +81,16 @@ body.panel-open .story-mode #view-status { visibility: visible; }
 }
 
 .field-mode #view-status { background: var(--bg-raised); border-radius: var(--radius-sm); padding: .35rem .5rem; }
+
+#story-timeline { left: auto; right: max(1rem, env(safe-area-inset-right)); width: min(26rem, calc(100vw - 2rem)); z-index: 3; }
+#story-timeline summary { cursor: pointer; font: 600 1.15rem var(--font-display); }
+#timeline-points { padding-left: 1.5rem; }
+#timeline-points li { padding: .6rem; margin: .5rem 0; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+#timeline-points li.selected { border-color: var(--accent-amber); }
+#timeline-points button { width: 100%; text-align: left; }
+#timeline-points button[aria-current="true"] { background: var(--accent-amber-soft); color: var(--accent-amber); }
+#timeline-points span { display: block; margin: .4rem 0; }
+#story-timeline input[type="range"] { padding: 0; }
+@media (max-width: 767.98px) {
+  #story-timeline { left: .5rem; right: .5rem; width: auto; z-index: 8; }
+}

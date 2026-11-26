@@ -46,3 +46,13 @@ test('opening stays an exact single pendulum for ten seconds before eight second
   assert.equal(openingLength(14,1),.5);assert.equal(openingVisualLength(14,1),.5);
   assert.equal(openingLength(18,1),1);assert.equal(openingVisualLength(18,1),1);
 });
+
+
+test('opening supports edited and instantaneous introduction/growth timings',async()=>{
+  const {openingLength,openingVisualLength}=await import('../src/physics/pendulum.js');
+  assert.equal(openingLength(2,1,3,4),0);
+  assert.equal(openingLength(5,1,3,4),.5);
+  assert.equal(openingVisualLength(5,1,3,4),.5);
+  assert.equal(openingLength(0,1,0,0),1);
+  assert.equal(openingVisualLength(0,1,0,0),1);
+});

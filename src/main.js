@@ -1,3 +1,7 @@
+import { defaultTimeline } from './story/default-timeline.js';
+import { compileTimeline } from './story/timeline.js';
+import { StoryPlayer } from './story/player.js';
+import { setupStoryTimeline } from './ui/story-timeline.js';
 import { setupSingleDrag } from './ui/single-drag.js';
 import { setupMapGestures } from './ui/map-gestures.js';
 import { MapInspector } from './ui/map-inspector.js';
@@ -18,7 +22,7 @@ import { DEFAULT_MAP_STEPS, MAP_METRICS, isValidMetric, isValidDtDenom, formatDt
 import { BookmarkStore } from './maps/bookmarks.js';
 import { encodeShareHash, decodeShareHash } from './maps/state.js';
 
-setupChrome(()=>{if(!matchMedia('(min-width: 768px)').matches)pointInspector.close();});
+setupChrome(()=>{if(!matchMedia('(min-width: 768px)').matches){pointInspector.close();element('story-timeline').classList.add('hidden');}});
 setupAngleDomain();
 const status=element('view-status');
 const renderStatus=element('render-status');
@@ -53,6 +57,86 @@ const bookmarkStore=new BookmarkStore();
 let mapGeneration=0;
 let panMoved=false;
 /** @type {{theta1:number,theta2:number,u:number,v:number}|null} */ let fieldProbe=null;
+
+let timelinePoints=defaultTimeline.map(point=>({...point})),timeline=compileTimeline(timelinePoints);
+const timelinePlayer=new StoryPlayer();
+let editorActive=false,editorPreview=null,editorTarget=0,editorElapsed=0,editorSteps=0,editorPlayAfter=false;
+function cancelEditor() {
+  editorActive=false;timelinePlayer.clear();if(editorPreview){if(editorPreview.inFlight)editorPreview.retired=true;else editorPreview.gpu.destroy();}editorPreview=null;
+}
+function seekEditor(index,play=false) {
+  if(!backend||failed)return;
+  if(editorPreview){if(editorPreview.inFlight)editorPreview.retired=true;else editorPreview.gpu.destroy();}editorPreview=null;editorActive=true;editorTarget=index;editorPlayAfter=play;
+  setPaused(true);editorElapsed=timeline.entries[index].start;editorSteps=0;
+  storyRequested=false;replayRequested=false;exploreRequested=false;
+  timelinePlayer.seek(backend.fork(),timeline,singleInitial,p,index,number('speed'));
+  mode='story';syncMode();timelineUI.update(timeline,editorElapsed,index,true);
+}
+function replaceTimings(points) {
+  timelinePoints=points;timeline=compileTimeline(points);timelinePlayer.clear();timelineUI.render(timeline);seekEditor(editorTarget);
+}
+const timelineUI=setupStoryTimeline({
+  points:()=>timelinePoints,
+  seek:index=>seekEditor(index),
+  edit:(index,value,commit)=>{setPaused(true);timelinePlayer.clear();timelinePoints[index].duration=value;timeline=compileTimeline(timelinePoints);timelineUI.update(timeline,editorElapsed,index);if(commit)seekEditor(index);},
+  play:()=>{if(!editorActive&&mode==='story')setPaused(!paused);else if(!editorActive)seekEditor(0,true);else if(timelinePlayer.job)editorPlayAfter=!editorPlayAfter;else setPaused(!paused);},
+  replay:()=>seekEditor(0,!reducedMotion),
+  defaults:()=>replaceTimings(defaultTimeline.map(point=>({...point}))),
+  import:replaceTimings
+});
+timelineUI.render(timeline);
+function openTimeline() {
+  element('settings').classList.add('hidden');pointInspector.close();
+  element('story-timeline').classList.remove('hidden');
+}
+for(const id of ['edit-story','story-edit'])element(id).addEventListener('click',openTimeline);
+element('timeline-close').addEventListener('click',()=>{element('story-timeline').classList.add('hidden');element(mode==='story'?'story-edit':'edit-story').focus();});
+input('speed').addEventListener('input',()=>{timelinePlayer.checkpoints.clear();if(editorActive)seekEditor(editorTarget);});
+async function advanceEditor(elapsed) {
+  if(timelinePlayer.job) {
+    const preview=await timelinePlayer.pump();
+    if(!preview)return;
+    editorPreview=preview;setPaused(!editorPlayAfter);
+  }
+  if(!editorPreview)return;
+  const point=timeline.entries[editorTarget],opening=editorTarget<2;
+  const running=['opening','growth','run'].includes(point.action);
+  if(!paused&&!document.hidden) {
+    const end=editorTarget===timeline.entries.length-1?Infinity:point.end;
+    editorElapsed=Math.min(end,editorElapsed+Math.min(.1,elapsed)*(opening?number('speed'):1));
+    const target=running?Math.round((editorElapsed-point.start)*(opening?1:number('speed'))/DT):0;
+    const count=Math.min(32,Math.max(0,target-editorSteps));
+    if(count) {
+      const preview=editorPreview;
+      preview.inFlight=true;
+      let next;
+      try {
+        next=opening?await preview.gpu.advanceVarying(count,i=>({...p,l2:openingLength(point.start+(editorSteps+i)*DT,p.l2,timeline.entries[0].duration,timeline.entries[1].duration)})):await preview.gpu.advance(count,p);
+      } catch(error) {if(preview===editorPreview)throw error;}
+      finally {preview.inFlight=false;if(preview.retired)preview.gpu.destroy();}
+      if(preview!==editorPreview)return;
+      preview.state=next;editorSteps+=count;
+    }
+    if(editorElapsed>=end&&editorSteps>=target&&editorTarget<timeline.entries.length-1) {
+      timelinePlayer.checkpoints.set(editorTarget+1,{state:editorPreview.state.slice(),field:editorPreview.field});
+      seekEditor(editorTarget+1,true);return;
+    }
+  }
+  if(opening) {
+    const visual={...p,l2:openingVisualLength(editorElapsed,p.l2,timeline.entries[0].duration,timeline.entries[1].duration)};
+    view.draw(editorPreview.state,visual,false,false,false);
+    element('story-title').textContent=point.label;element('story-caption').textContent=point.caption;
+    element('story-chapter').textContent='Opening';element('story-copy').style.opacity='1';
+  } else {
+    const scene=storyFrame(editorElapsed-timeline.gridOffset,reducedMotion,timeline,point.original);
+    storyView.draw(editorPreview.state,p,scene,editorElapsed,[],editorPreview.resetFrom);
+    element('story-title').textContent=scene.chapter.title;element('story-caption').textContent=scene.chapter.text;
+    element('story-chapter').textContent=scene.chapter.number;element('story-copy').style.opacity=String(paused?1:scene.opacity);
+  }
+  element('story-progress').textContent=`${editorElapsed.toFixed(1)} / ${timeline.duration.toFixed(1)} s`;
+  status.textContent=`WebGPU ? story preview${paused?' ? paused':''}`;
+  timelineUI.update(timeline,editorElapsed,editorTarget,false);
+}
 
 function canvasSize() {
   return {width:Math.max(2,Math.round(canvas.clientWidth)),height:Math.max(2,Math.round(canvas.clientHeight))};
@@ -130,6 +214,7 @@ function makeFieldEnsemble(width,height,domain,run) {
   return createPixelField(width,height,domain);
 }
 function restart() {
+  cancelEditor();
   setGridEnabled(requestedMode==='grid'); setFieldEnabled(requestedMode==='field');
   if(!form.reportValidity()) return;
   if(mode==='story'){story=null;mode='single';requestedMode='single';storyRequested=false;replayRequested=false;exploreRequested=false;syncMode();}
@@ -174,6 +259,7 @@ function loadShareHash(hash) {
 }
 form.addEventListener('submit',e=>{e.preventDefault();restart();});
 element('defaults').addEventListener('click',()=>{
+  timelinePoints=defaultTimeline.map(point=>({...point}));timeline=compileTimeline(timelinePoints);timelineUI.render(timeline);
   form.reset();input('speed').value='1';input('trails').checked=true;input('compare').checked=false;
   input('colour-source').value='current';input('field-run').value='animate';
   input('map-metric').value='final-angle';input('map-steps').value=String(DEFAULT_MAP_STEPS);
@@ -184,7 +270,7 @@ element('defaults').addEventListener('click',()=>{
   restart();
 });
 element('restart').addEventListener('click',restart);
-element('pause').addEventListener('click',()=>setPaused(!paused));
+element('pause').addEventListener('click',()=>{if(editorActive&&timelinePlayer.job)editorPlayAfter=!editorPlayAfter;else setPaused(!paused);});
 element('step').addEventListener('click',()=>{setPaused(true);stepPending=true;});
 input('trails').addEventListener('change',()=>view.clear());
 input('compare').addEventListener('change',()=>view.clear());
@@ -234,7 +320,7 @@ function syncMode() {
 }
 for(const [id,next] of [['single-toggle','single'],['grid-toggle','grid'],['field-toggle','field']]) {
   element(id).addEventListener('click',()=>{
-    story=null;storyRequested=false;replayRequested=false;exploreRequested=false;
+    element('story-timeline').classList.add('hidden');cancelEditor();story=null;storyRequested=false;replayRequested=false;exploreRequested=false;
     if(mode==='story')mode='single';
     requestedMode=next;if(next==='single')input('opening').value='fixed';restart();
   });
@@ -244,13 +330,14 @@ element('shot').addEventListener('click',()=>{
 });
 function requestStory() {
   if(!backend||failed)return;
+  if(timelinePoints.some((p,i)=>p.duration!==defaultTimeline[i].duration)||!element('story-timeline').classList.contains('hidden')){seekEditor(0,!reducedMotion);return;}
   if(mode==='story'){replayRequested=true;return;}
   if(mode==='grid'||mode==='field'){requestedMode='single';restart();}
   storyRequested=true;setPaused(reducedMotion);
 }
 element('play-story').addEventListener('click',requestStory);
-element('replay-story').addEventListener('click',()=>{replayRequested=true;});
-element('leave-story').addEventListener('click',()=>{exploreRequested=true;});
+element('replay-story').addEventListener('click',()=>{if(editorActive)seekEditor(0,!reducedMotion);else replayRequested=true;});
+element('leave-story').addEventListener('click',()=>{if(editorActive){const preview=editorPreview;ensemble=preview?.field??storyEnsemble(2,singleInitial[0],singleInitial[1]);states=preview?.field?preview.state.slice():ensemble.initial.slice();if(preview&&!preview.field)states.set(preview.state.subarray(0,4));backend.resetStates(states);cancelEditor();story={};}exploreRequested=true;});
 function beginStory() {
   const field=storyEnsemble(2,singleInitial[0],singleInitial[1]);
   const seed=field.initial.slice();seed.set(states.slice(0,4));
@@ -260,6 +347,8 @@ function beginStory() {
 }
 function paintStory() {
   const scene=storyFrame(story.elapsed,reducedMotion);
+  const current=timeline.entries.filter(point=>point.start<=story.elapsed+timeline.gridOffset).length-1;
+  timelineUI.update(timeline,story.elapsed+timeline.gridOffset,current);
   storyView.draw(states,p,scene,story.elapsed,story.trail,story.resetFrom);
   element('story-chapter').textContent=`${scene.chapter.number} / From one to many`;
   element('story-title').textContent=scene.chapter.title;element('story-caption').textContent=scene.chapter.text;
@@ -556,13 +645,14 @@ async function frame(now) {
   const elapsed=last?(now-last)/1000:0;last=now;
   if(!paused && !document.hidden) accumulator+=elapsed*number('speed');
   pointInspector.tick(elapsed,paused||document.hidden,number('speed'));
-  if(mode==='story') {
+  if(mode==='story'&&!editorActive) {
     if(!paused&&!document.hidden)story.elapsed=Math.min(STORY_DURATION,story.elapsed+Math.min(.1,elapsed));
     if(storyFrame(story.elapsed,reducedMotion).stage===story.stage)try {paintStory();}catch(error){fail(error);return;}
   }
   if(!busy && backend) {
     busy=true;
     try {
+      if(editorActive){await advanceEditor(elapsed);return;}
       if(queuedDomain&&!resetPending){const domain=queuedDomain;queuedDomain=null;resampleField(domain);}
       if(poseReset){backend.reset(states[0],states[1]);poseReset=false;}
       if(resetPending) {

@@ -8,7 +8,7 @@ async function boot(supported=false,desktop=false,options={}) {
   const html=readFileSync('index.html','utf8'), nodes=new Map();
   for(const match of html.matchAll(/\bid="([^"]+)"[^>]*>/g)) {
     const listeners={};
-    const classes=new Set();
+    const classes=new Set((match[0].match(/class="([^"]*)"/)?.[1]??'').split(/\s+/).filter(Boolean));
     const children=[];
     const node={value:match[0].match(/\bvalue="([^"]*)"/)?.[1]??'',checked:match[0].includes('checked'),disabled:false,
       textContent:'',style:{},width:0,height:0,clientWidth:1000,clientHeight:800,children,
@@ -45,10 +45,10 @@ async function boot(supported=false,desktop=false,options={}) {
     navigator:{clipboard:{async writeText(text){copied.push(text);}}},
     ImageData:class ImageData{constructor(data,width,height){if(typeof data==='number'){this.width=data;this.height=width;this.data=new Uint8ClampedArray(data*width*4);}else{this.data=data;this.width=width;this.height=height??data.length/width/4;}}},
     document:{getElementById:id=>{assert.ok(nodes.has(id),`HTML declares #${id}`);return nodes.get(id);},
-      createElement:tag=>tag==='option'?{value:'',textContent:''}:({width:0,height:0,getContext:()=>new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4),width:w,height:h}),putImageData(){},drawImage(){},setTransform(){},clearRect(){},fillRect(){},fillText(){},measureText:()=>({width:40}),setLineDash(){},strokeRect(){},save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},stroke(){},arc(){},fill(){},translate(){},rotate(){}},{get:(t,prop)=>prop in t?t[prop]:()=>{}})}),
+      createElement:tag=>tag!=='canvas'?{value:'',textContent:'',style:{},children:[],listeners:{},appendChild(child){this.children.push(child);return child;},addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(){},classList:{toggle(){}}}:({width:0,height:0,getContext:()=>new Proxy({createImageData:(w,h)=>({data:new Uint8ClampedArray(w*h*4),width:w,height:h}),putImageData(){},drawImage(){},setTransform(){},clearRect(){},fillRect(){},fillText(){},measureText:()=>({width:40}),setLineDash(){},strokeRect(){},save(){},restore(){},beginPath(){},moveTo(){},lineTo(){},stroke(){},arc(){},fill(){},translate(){},rotate(){}},{get:(t,prop)=>prop in t?t[prop]:()=>{}})}),
       body:{classList:{toggle(){}}},addEventListener(){}},
     getComputedStyle:()=>({getPropertyValue:()=> 'monospace'}),
-    matchMedia:query=>({matches:query==='(min-width: 768px)'&&desktop,addEventListener(){}}),requestAnimationFrame:fn=>frames.push(fn)});
+    matchMedia:query=>({matches:query==='(min-width: 768px)'?desktop:query==='(prefers-reduced-motion: reduce)'&&!!options.reducedMotion,addEventListener(){}}),requestAnimationFrame:fn=>frames.push(fn)});
   const cache=new Map();
   async function load(url) {
     if(cache.has(url.href))return cache.get(url.href);
@@ -244,4 +244,32 @@ test('direct modes stay explicit and static computation completes while paused',
   const batches=calls.filter(c=>c.kind==='inplace');assert.ok(batches.length>0);
   const completed=calls.length;await tick(2000);assert.equal(calls.length,completed,'Completed static pixels never advance again');
   nodes.get('single-toggle').listeners.click();await tick(2016);assert.equal(nodes.get('opening').value,'fixed');
+});
+
+
+test('timeline UI updates cumulative totals, previews, pauses, replays and cancels on mode exit',async()=>{
+  const {nodes,tick}=await boot(true);
+  await tick(100);nodes.get('edit-story').listeners.click();
+  assert.equal(nodes.get('story-timeline').classList.contains('hidden'),false);
+  const rows=nodes.get('timeline-points').children;
+  assert.equal(rows.length,34);
+  const duration=rows[0].children[2].children[1];duration.value='0';duration.listeners.input();
+  assert.match(nodes.get('timeline-clock').textContent,/173.00 s/);
+  duration.listeners.change();await tick(200);
+  assert.match(nodes.get('story-title').textContent,/Single-arm/);
+  assert.equal(nodes.get('pause-label').textContent,'Play');
+  nodes.get('timeline-play').listeners.click();await tick(300);await tick(400);
+  nodes.get('timeline-play').listeners.click();assert.equal(nodes.get('pause-label').textContent,'Play');
+  nodes.get('timeline-replay').listeners.click();await tick(500);
+  assert.match(nodes.get('timeline-clock').textContent,/0.00/);
+  nodes.get('single-toggle').listeners.click();await tick(600);
+  assert.match(nodes.get('view-status').textContent,/t = /);
+});
+
+
+test('timeline replay starts paused for reduced-motion users',async()=>{
+  const {nodes,tick}=await boot(true,false,{reducedMotion:true});
+  await tick(100);nodes.get('edit-story').listeners.click();nodes.get('timeline-replay').listeners.click();await tick(200);
+  assert.equal(nodes.get('pause-label').textContent,'Play');
+  assert.match(nodes.get('timeline-clock').textContent,/0.00 \/ 183.00/);
 });

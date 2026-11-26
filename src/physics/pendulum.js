@@ -19,14 +19,14 @@ export function growthLength(time, target, duration = GROW_DURATION) {
 
 /** Physical length used by the GPU at each fixed step of the default opening.
  * @param {number} time @param {number} target */
-export function openingLength(time,target) {
-  return growthLength(Math.max(0,time-INTRO_DURATION),target);
+export function openingLength(time,target,intro=INTRO_DURATION,duration=GROW_DURATION) {
+  return time<intro?0:duration===0?target:growthLength(Math.max(0,time-intro),target,duration);
 }
 
 /** Visible length omits the numerical floor used by the illustrative growth equations.
  * @param {number} time @param {number} target */
-export function openingVisualLength(time,target) {
-  return target*Math.min(1,Math.max(0,(time-INTRO_DURATION)/GROW_DURATION));
+export function openingVisualLength(time,target,intro=INTRO_DURATION,duration=GROW_DURATION) {
+  return duration===0?(time>=intro?target:0):target*Math.min(1,Math.max(0,(time-intro)/duration));
 }
 
 /** Independent double-precision reference, used by tests only.

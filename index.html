@@ -56,6 +56,7 @@
     <label>Playback speed<select id="speed"><option value="0.25">¼×</option><option value="0.5">½×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
         <button id="restart" aria-label="Restart experiment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8M6 9v12h12V9M10 21v-7h4v7"/></svg><span>Restart</span></button>
     <button id="step" aria-label="Pause and advance one integration step" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 4 12 8-12 8zM20 4v16"/></svg><span>Step</span></button>
+<button id="edit-story" type="button">Story timeline</button>
 <button id="play-story" type="button" disabled>Play grid story</button>
     <div id="single-display"><label class="check"><input id="trails" type="checkbox" checked> Show trails</label>
     <label class="check"><input id="compare" type="checkbox"> Nearby trajectory (+0.0001 rad)</label></div>
@@ -95,9 +96,20 @@
   <div id="view-status" role="status">Initialising WebGPU…</div>
   <div id="render-status" class="hidden" role="status"><div id="render-fill"></div><span id="render-label">Map 0 / 1000</span></div>
   <div class="caption"><span id="phase">A predictable rhythm</span><p id="explanation">Back and forth, a single pendulum repeats its swing. With no friction, the same starting conditions give the same steady rhythm.</p></div>
+  <aside id="story-timeline" class="hidden" aria-label="Story timeline">
+    <details open><summary>Story timeline</summary>
+      <p class="hint">Tab-only timings. Editing pauses; release to preview the selected point. Zero seconds makes an instantaneous transition. Physics speed and browser slowdowns affect viewing time. The closing field keeps evolving after the authored total.</p>
+      <p id="timeline-clock" class="mono-note"></p>
+      <div class="action-row"><button id="timeline-play">Play / pause</button><button id="timeline-replay">Replay</button><button id="timeline-close">Close</button></div>
+      <div class="pair"><button id="timeline-defaults">Restore default timings</button><button id="timeline-export">Export JSON</button></div>
+      <label>Import timing JSON<input id="timeline-import" type="file" accept=".json,application/json"></label>
+      <p id="timeline-preparing" role="status"></p><p id="timeline-message" role="status"></p>
+      <ol id="timeline-points"></ol>
+    </details>
+  </aside>
   <section id="story-overlay" class="hidden" aria-label="Guided pendulum chapters">
     <div id="story-copy"><span id="story-chapter" class="eyebrow"></span><h2 id="story-title"></h2><p id="story-caption"></p></div>
-    <div class="story-footer"><span id="story-progress"></span><button id="replay-story">Replay</button><button id="leave-story">Explore grid</button></div>
+    <div class="story-footer"><span id="story-progress"></span><button id="story-edit">Story timeline</button><button id="replay-story">Replay</button><button id="leave-story">Explore grid</button></div>
   </section>
   <nav id="app-nav" aria-label="Simulation controls">
 

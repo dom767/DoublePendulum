@@ -140,3 +140,13 @@ Verification: 22 Node tests pass, including packaging, bounded rendering and the
 - [ ] Actual WebGPU execution, smoothness and visual review at landscape/portrait recording sizes. Browser launch was previously policy-blocked; no new hardware/visual pass is claimed.
 
 Verification: all 19 Node tests pass, including source packaging; TypeScript and syntax checks pass. Use Grid from the single view to watch the sequence, and `/checks/gpu.html` to run hardware acceptance. Milestones 3 and 5 remain partial, not complete. No deployment performed.
+
+
+### Editable story timeline ? Task436
+
+- Added 34 stable authored points, preserving all default event boundaries and captions: 10-second introduction + eight-second growth + 165-second grid sequence = 183 seconds.
+- Added a collapsible, scrollable native-control timeline with clickable previews, precise duration editing, cumulative start times, elapsed/total time, playback, replay and timing reset.
+- Added versioned JSON timing export and atomic validation/import. Timings remain tab-only; content and ordering remain code-owned.
+- Added bounded GPU preview reconstruction, point checkpoints, sequential event processing and cancellation/retirement of obsolete GPU work. Zero-duration events and closing-field evolution are explicit.
+- Verification: 54 Node tests pass, including JSON round trips/rejections, default/zero/short timings, cached backward seeks, stale readback cancellation, edited opening physics and full UI editor playback. TypeScript check and source/packaging tests pass. HTTP smoke checks use controller-claimed port 7101 because 7100 is occupied. Server stopped after verification.
+- Remaining human verification: real WebGPU numerical acceptance (`/checks/gpu.html`), playback/seeking smoothness, reduced-motion presentation and 360px/768px/desktop layouts. Browser launch was blocked by execution policy, so no real GPU or visual pass is claimed. No deployment.

@@ -107,3 +107,14 @@ The optional guided story uses the applied single-experiment physics and the nea
 For target-hardware verification, `/checks/gpu.html` now also runs 25,600 states for 32 steps and checks dense corners against isolated runs. It reports compute-plus-readback time; that excludes drawing and is not a recording frame-rate benchmark. Actual GPU performance and visual pacing must still be reviewed in the recording browser.
 
 See [PLAN.md](PLAN.md) for all five milestones and [PROGRESS.md](PROGRESS.md) for evidence and remaining work.
+
+
+## Story timeline editor
+
+Open **Settings ? Story timeline**, or **Story timeline** during a guided story. The panel can collapse and scroll independently of the canvas. Its 34 clickable points include the 10-second single-arm introduction, eight-second growth and every existing grid reveal, reset, camera move, colour change, hold and run, including the second sensitivity caption. Default authored time is **183 seconds** (165 seconds of grid chapters).
+
+Click a point to pause at its beginning. A slider or precise numeric input changes its duration (0?600 seconds); downstream start times and the total update immediately. Editing pauses playback, and releasing a slider or committing a number prepares that point with the new timings. Zero duration makes a hold or transition instantaneous. Previews reconstruct GPU physics in bounded batches and reuse cached point checkpoints; another selection cancels obsolete preparation. **Preparing preview** stays visible while reconstruction runs.
+
+Use the panel's **Play / pause** and **Replay** for the complete authored opening and timeline. The regular guided-story button retains its captured-pose opening when defaults are untouched; after timing edits it uses the edited complete timeline. Reduced-motion users start paused and receive camera cuts. The finite authored total is separate from the final field, which continues evolving. Opening speed follows physics speed; grid chapter pacing is independent of physics speed. Browser stalls and GPU catch-up can lengthen viewing time.
+
+Timings apply only to this tab, are not saved automatically, and reset on reload or **Restore default timings**. **Export JSON** downloads `double-pendulum-story.json` with version 1, stable point IDs and durations. **Import timing JSON** previews a saved file locally; unsupported versions, missing/unknown/duplicate IDs and invalid durations are rejected without replacing the current timings. Export the tuned file and send it with the next storypoints to update checked-in defaults. Content and point order remain code changes in this version.
